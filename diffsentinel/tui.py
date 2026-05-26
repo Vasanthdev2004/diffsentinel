@@ -14,6 +14,7 @@ from rich.table import Table
 from rich.text import Text
 
 from .patcher import PatchError, apply_issue
+from .rules import can_auto_apply
 from .schema import Issue
 
 
@@ -80,7 +81,7 @@ def _render(console: Console, targets: list[IssueTarget], selected: int) -> None
 
     header = Text()
     header.append("DiffSentinel ", style="bold cyan")
-    header.append("● cache-safe local diff audit", style="green")
+    header.append("* cache-safe local diff audit", style="green")
     header.append(f"   File: {target.file_path}", style="white")
     header.append(f"   Issues: {len(targets)}", style="bold white")
     layout["header"].update(Panel(header, box=box.SQUARE, style="white on #0d1117"))
@@ -102,7 +103,7 @@ def _render(console: Console, targets: list[IssueTarget], selected: int) -> None
         )
     )
 
-    footer = Align.center("[A] Apply fix    [↑/↓] Navigate    [Q] Quit", vertical="middle")
+    footer = Align.center("[A] Apply safe fix    [Up/Down] Navigate    [Q] Quit", vertical="middle")
     layout["footer"].update(Panel(footer, box=box.SQUARE, style="white on #0d1117"))
     console.print(layout)
 
@@ -131,7 +132,10 @@ def _issue_table(targets: list[IssueTarget], selected: int) -> Group:
         row.append(f" line {issue.line_number}\n", style="bold white")
         row.append(f"{issue.explanation}\n", style="white")
         row.append(f"Impact: {issue.impact}\n", style="dim")
-        row.append("Fix:\n", style="bold green")
+        if can_auto_apply(issue):
+            row.append("Safe auto-fix:\n", style="bold green")
+        else:
+            row.append("Manual review suggestion:\n", style="bold yellow")
         row.append(issue.optimized_code, style="green")
         table.add_row(Panel(row, border_style="red" if issue.severity == "CRITICAL" else "yellow"))
     return Group(table)

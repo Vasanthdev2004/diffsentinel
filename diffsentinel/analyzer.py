@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from .demo_cache import cached_result_for_chunk
 from .diff import DiffChunk
+from .rules import analyze_with_rules
 from .schema import AnalysisResult
 
 
@@ -31,7 +32,7 @@ def analyze_chunk(
     force_cache: bool = False,
 ) -> AnalysisResult:
     if force_cache or not os.getenv("OPENAI_API_KEY"):
-        return cached_result_for_chunk(chunk)
+        return analyze_with_rules(chunk)
 
     try:
         return _analyze_with_openai(chunk, model=model, timeout=timeout)

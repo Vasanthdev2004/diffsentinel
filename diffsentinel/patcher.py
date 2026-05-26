@@ -20,12 +20,14 @@ class PatchError(RuntimeError):
     """Raised when an issue cannot be safely applied."""
 
 
-def apply_issue(file_path: str | Path, issue: Issue) -> PatchResult:
+def apply_issue(file_path: str | Path, issue: Issue, *, allow_multiline: bool = False) -> PatchResult:
     path = Path(file_path)
     if not path.exists():
         raise PatchError(f"File does not exist: {path}")
     if issue.line_number < 1:
         raise PatchError("Issue line_number must be 1-based")
+    if "\n" in issue.optimized_code and not allow_multiline:
+        raise PatchError("Multi-line suggestions require manual review before applying")
 
     original = path.read_text(encoding="utf-8")
     lines = original.splitlines(keepends=True)
