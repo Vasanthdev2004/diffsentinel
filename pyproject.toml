@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "diffsentinel"
+version = "0.1.0"
+description = "Terminal-native local code change performance auditor for hackathon demos."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.54.0",
+    "pydantic>=2.8.0",
+    "rich>=13.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+]
+
+[project.scripts]
+diffsentinel = "diffsentinel.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
