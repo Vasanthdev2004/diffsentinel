@@ -42,7 +42,8 @@ def test_cli_json_uses_cache_for_primary_demo(tmp_path: Path, monkeypatch, capsy
             apply_first=False,
             exit_on_critical=False,
             force_cache=True,
-            model="gpt-5-mini",
+            model="gpt-5.5",
+            reasoning_effort="low",
             timeout=10.0,
         )
     )
@@ -93,7 +94,8 @@ def test_cli_apply_first_rewrites_safe_fix(tmp_path: Path, monkeypatch):
             apply_first=True,
             exit_on_critical=False,
             force_cache=True,
-            model="gpt-5-mini",
+            model="gpt-5.5",
+            reasoning_effort="low",
             timeout=10.0,
         )
     )

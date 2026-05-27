@@ -59,7 +59,7 @@ diffsentinel demo
 Test result:
 
 ```text
-20 passed
+22 passed
 ```
 
 ## Next Steps

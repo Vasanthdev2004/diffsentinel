@@ -65,6 +65,14 @@ Optional live OpenAI analysis:
 
 ```powershell
 $env:OPENAI_API_KEY = "sk-..."
+diffsentinel scan . --live --model gpt-5.5 --json
+```
+
+The default live model is `gpt-5.5`, with `--reasoning-effort low` for fast audits. You can override this per command or with:
+
+```powershell
+$env:DIFFSENTINEL_MODEL = "gpt-5.5"
+$env:DIFFSENTINEL_REASONING_EFFORT = "medium"
 ```
 
 Without `OPENAI_API_KEY`, DiffSentinel still works through the local rules engine.
@@ -117,6 +125,7 @@ diffsentinel check
 diffsentinel scan .
 diffsentinel check --json
 diffsentinel scan . --json --exit-on-critical
+diffsentinel scan . --live --model gpt-5.5 --reasoning-effort low --json
 diffsentinel check --no-tui
 diffsentinel check --apply-first
 diffsentinel check --exit-on-critical
@@ -149,6 +158,12 @@ diffsentinel scan . --json --exit-on-critical
 ```
 
 The JSON payload includes `schema_version`, `scope`, `summary`, and an `issues` list with file paths, severity, category, explanation, impact, confidence, and suggested fix. This lets CLI coding agents call DiffSentinel after they modify code and decide whether to patch, ask the user, or stop.
+
+For higher-accuracy live audits:
+
+```powershell
+diffsentinel scan . --live --model gpt-5.5 --reasoning-effort medium --json
+```
 
 ## What It Detects Today
 

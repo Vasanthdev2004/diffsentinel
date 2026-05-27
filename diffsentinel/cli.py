@@ -8,7 +8,7 @@ from typing import Sequence
 
 from rich.console import Console
 
-from .analyzer import analyze_chunk
+from .analyzer import DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT, analyze_chunk
 from .demo import run_demo
 from .diff import DiffError, get_diff_chunks
 from .hooks import HookError, install_pre_commit_hook, uninstall_pre_commit_hook
@@ -57,7 +57,13 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--apply-first", action="store_true", help="Apply the highest-confidence safe fix and exit")
     check.add_argument("--exit-on-critical", action="store_true", help="Exit 1 if any CRITICAL issue is found")
     check.add_argument("--force-cache", action="store_true", help="Skip OpenAI and use the local demo cache")
-    check.add_argument("--model", default="gpt-5-mini", help="OpenAI model to use when OPENAI_API_KEY is set")
+    check.add_argument("--model", default=DEFAULT_OPENAI_MODEL, help="OpenAI model to use when OPENAI_API_KEY is set")
+    check.add_argument(
+        "--reasoning-effort",
+        default=DEFAULT_REASONING_EFFORT,
+        choices=["low", "medium", "high", "xhigh"],
+        help="Reasoning effort for Responses API live analysis",
+    )
     check.add_argument("--timeout", type=float, default=10.0, help="OpenAI request timeout in seconds")
 
     scan = subparsers.add_parser("scan", help="Audit all Python files in a project")
@@ -66,7 +72,13 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--no-tui", action="store_true", help="Print a non-interactive findings table")
     scan.add_argument("--exit-on-critical", action="store_true", help="Exit 1 if any CRITICAL issue is found")
     scan.add_argument("--live", action="store_true", help="Use OpenAI analysis when OPENAI_API_KEY is set")
-    scan.add_argument("--model", default="gpt-5-mini", help="OpenAI model to use with --live")
+    scan.add_argument("--model", default=DEFAULT_OPENAI_MODEL, help="OpenAI model to use with --live")
+    scan.add_argument(
+        "--reasoning-effort",
+        default=DEFAULT_REASONING_EFFORT,
+        choices=["low", "medium", "high", "xhigh"],
+        help="Reasoning effort for Responses API live analysis",
+    )
     scan.add_argument("--timeout", type=float, default=10.0, help="OpenAI request timeout in seconds")
     scan.add_argument("--max-files", type=int, default=500, help="Maximum Python files to scan")
     scan.add_argument("--exclude-tests", action="store_true", help="Skip files under test/tests directories")
@@ -112,6 +124,7 @@ def run_check(args: argparse.Namespace) -> int:
             model=args.model,
             timeout=args.timeout,
             force_cache=args.force_cache,
+            reasoning_effort=args.reasoning_effort,
         )
         records.extend(
             IssueRecord(file_path=chunk.filepath, issue=issue, excerpt=chunk.code_excerpt)
@@ -157,6 +170,7 @@ def run_scan(args: argparse.Namespace) -> int:
             model=args.model,
             timeout=args.timeout,
             force_cache=not args.live,
+            reasoning_effort=args.reasoning_effort,
         )
         absolute_file = str((scan.root / chunk.filepath).resolve())
         records.extend(
