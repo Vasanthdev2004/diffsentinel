@@ -90,8 +90,35 @@ Current status:
 - onboarding and doctor commands working
 - Agent Guard Mode working
 - reversible safe apply and restore working
-- tests passing: 29
+- one-command `demo-agent` story working
+- tests passing: 30
 - public repo live
+
+Repo: https://github.com/Vasanthdev2004/diffsentinel
+
+#OpenAIHackathon
+
+## LinkedIn Post 4
+
+Day 3 build update for the #OpenAIHackathon:
+
+DiffSentinel now has a full agent demo path:
+
+```powershell
+diffsentinel demo-agent
+```
+
+It simulates the story we want judges to understand:
+
+1. A coding agent changes code.
+2. The change introduces a latency bug.
+3. DiffSentinel runs Agent Guard Mode.
+4. It returns Agent JSON v2 with a blocked reason and next action.
+5. It applies the safe fix.
+6. Guard reruns clean.
+7. Restore proves the safe fix is reversible.
+
+This is the product direction: DiffSentinel as the safety layer for AI-generated code.
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel
 

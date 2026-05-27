@@ -41,6 +41,7 @@ Completed today:
 - Added project config and generated `AGENTS.md` instructions for coding agents.
 - Added Agent Guard Mode: `guard`, `fix-plan`, `apply-safe`, and `restore`.
 - Added Agent JSON v2 and reversible safe-apply run metadata.
+- Added `diffsentinel demo-agent` for the full agent safety-layer demo story.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.
@@ -60,15 +61,21 @@ Demo command:
 diffsentinel demo
 ```
 
+Agent demo command:
+
+```powershell
+diffsentinel demo-agent
+```
+
 Test result:
 
 ```text
-29 passed
+30 passed
 ```
 
 ## Next Steps
 
-- Record the `diffsentinel demo` command as the checkpoint video.
+- Record the `diffsentinel demo-agent` command as the checkpoint video.
 - Add a screenshot/GIF from the demo output to README.
 - Polish the terminal UI for final launch.
 - Create a GitHub release tag before final submission.

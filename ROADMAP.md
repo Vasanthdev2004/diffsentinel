@@ -13,6 +13,7 @@ DiffSentinel is evolving from a Python performance CLI into an agentic code safe
 
 ## v0.6 - Safe Fix Engine
 
+- One-command `demo-agent` narrative for checkpoint and final demo videos.
 - Batch multi-file safe apply with stronger conflict handling.
 - More granular rollback by run id and file.
 - Fix previews before applying in the TUI.

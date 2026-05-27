@@ -50,6 +50,7 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 - `--apply-first` for deterministic demos
 - `--exit-on-critical` for CI-style checks
 - `install-hook` to block critical staged regressions before commit
+- `demo-agent` for a full coding-agent guardrail story
 - Backup + atomic file rewrite
 - Focused test suite and GitHub Actions CI
 
@@ -107,6 +108,14 @@ diffsentinel demo
 
 That command creates a temporary git repo, introduces the async blocking bug, detects it, applies the safe fix, and prints the before/after code.
 
+For the full agent story:
+
+```powershell
+diffsentinel demo-agent
+```
+
+That command simulates a coding agent introducing a latency regression, runs Agent Guard Mode, applies a safe fix with rollback metadata, reruns guard to prove the code is clean, and demonstrates restore.
+
 Create a tiny repo with a clean baseline:
 
 ```powershell
@@ -149,6 +158,7 @@ diffsentinel guard --changed --json --fail-on-critical
 diffsentinel fix-plan --changed
 diffsentinel apply-safe --changed
 diffsentinel restore
+diffsentinel demo-agent
 diffsentinel check --json
 diffsentinel scan . --json --exit-on-critical
 diffsentinel scan . --live --model gpt-5.5 --reasoning-effort low --json
