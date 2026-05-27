@@ -61,10 +61,28 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
+## First Run Onboarding
+
+Initialize a project with DiffSentinel config, safe environment examples, and coding-agent instructions:
+
+```powershell
+diffsentinel init
+diffsentinel doctor
+```
+
+`diffsentinel init` creates:
+
+- `.diffsentinel.toml` for model and scan defaults
+- `.env.example` with placeholder environment variables
+- `.gitignore` entries for `.env` and backups
+- `AGENTS.md` instructions so CLI coding agents know to run DiffSentinel after edits
+
+DiffSentinel does **not** store your real API key in project files.
+
 Optional live OpenAI analysis:
 
 ```powershell
-$env:OPENAI_API_KEY = "sk-..."
+$env:OPENAI_API_KEY = "<your-openai-api-key>"
 diffsentinel scan . --live --model gpt-5.5 --json
 ```
 
@@ -122,6 +140,8 @@ diffsentinel check --force-cache --apply-first
 
 ```powershell
 diffsentinel check
+diffsentinel init
+diffsentinel doctor
 diffsentinel scan .
 diffsentinel check --json
 diffsentinel scan . --json --exit-on-critical
@@ -163,6 +183,12 @@ For higher-accuracy live audits:
 
 ```powershell
 diffsentinel scan . --live --model gpt-5.5 --reasoning-effort medium --json
+```
+
+For coding-agent workflows, keep this command in your agent instructions:
+
+```powershell
+diffsentinel scan . --json --exit-on-critical
 ```
 
 ## What It Detects Today

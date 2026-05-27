@@ -19,3 +19,4 @@ dist/
 *.diffsentinel.bak
 .DS_Store
 Thumbs.db
+.env

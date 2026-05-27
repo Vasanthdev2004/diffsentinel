@@ -87,7 +87,8 @@ Current status:
 - pre-commit hook install working
 - project-wide scan working
 - agent-friendly JSON output working
-- tests passing: 22
+- onboarding and doctor commands working
+- tests passing: 25
 - public repo live
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel

@@ -1,0 +1,11 @@
+# DiffSentinel project configuration
+# Do not store API keys in this file. Use OPENAI_API_KEY in your shell or secret manager.
+
+[openai]
+model = "gpt-5.5"
+reasoning_effort = "low"
+
+[scan]
+max_files = 500
+exclude_tests = false
+live = false

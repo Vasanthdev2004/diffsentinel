@@ -8,14 +8,16 @@ from typing import Sequence
 
 from rich.console import Console
 
-from .analyzer import DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT, analyze_chunk
+from .analyzer import analyze_chunk
 from .demo import run_demo
 from .diff import DiffError, get_diff_chunks
 from .hooks import HookError, install_pre_commit_hook, uninstall_pre_commit_hook
+from .onboarding import checks_json, initialize_project, print_doctor, print_init_result, run_doctor
 from .patcher import PatchError, apply_issue
 from .rules import can_auto_apply
 from .scanner import ProjectScan, scan_project
 from .schema import Issue
+from .settings import DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT, VALID_REASONING_EFFORTS, load_settings
 from .tui import IssueTarget, show_review
 
 
@@ -30,6 +32,10 @@ class IssueRecord:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "init":
+        return run_init(args)
+    if args.command == "doctor":
+        return run_doctor_command(args)
     if args.command == "check":
         return run_check(args)
     if args.command == "scan":
@@ -50,6 +56,25 @@ def build_parser() -> argparse.ArgumentParser:
         description="Terminal-native local code change performance auditor.",
     )
     subparsers = parser.add_subparsers(dest="command")
+    init = subparsers.add_parser("init", help="Onboard a project for DiffSentinel")
+    init.add_argument("path", nargs="?", default=".", help="Project directory to initialize")
+    init.add_argument("--force", action="store_true", help="Overwrite existing DiffSentinel files")
+    init.add_argument("--model", default=DEFAULT_OPENAI_MODEL, help="Default OpenAI model for live audits")
+    init.add_argument(
+        "--reasoning-effort",
+        default=DEFAULT_REASONING_EFFORT,
+        choices=VALID_REASONING_EFFORTS,
+        help="Default reasoning effort for live audits",
+    )
+    init.add_argument("--no-agent-docs", action="store_true", help="Do not create/update AGENTS.md")
+    init.add_argument("--no-env-example", action="store_true", help="Do not create .env.example")
+    init.add_argument("--no-gitignore", action="store_true", help="Do not add .env and backups to .gitignore")
+
+    doctor = subparsers.add_parser("doctor", help="Check DiffSentinel setup for this project")
+    doctor.add_argument("path", nargs="?", default=".", help="Project directory to check")
+    doctor.add_argument("--json", action="store_true", help="Print diagnostics as JSON")
+    doctor.add_argument("--live", action="store_true", help="Make a live OpenAI API reachability check")
+
     check = subparsers.add_parser("check", help="Audit the current git diff")
     check.add_argument("--staged", action="store_true", help="Analyze staged changes with git diff --cached")
     check.add_argument("--json", action="store_true", help="Print JSON instead of launching the terminal UI")
@@ -57,11 +82,10 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--apply-first", action="store_true", help="Apply the highest-confidence safe fix and exit")
     check.add_argument("--exit-on-critical", action="store_true", help="Exit 1 if any CRITICAL issue is found")
     check.add_argument("--force-cache", action="store_true", help="Skip OpenAI and use the local demo cache")
-    check.add_argument("--model", default=DEFAULT_OPENAI_MODEL, help="OpenAI model to use when OPENAI_API_KEY is set")
+    check.add_argument("--model", help="OpenAI model to use when OPENAI_API_KEY is set")
     check.add_argument(
         "--reasoning-effort",
-        default=DEFAULT_REASONING_EFFORT,
-        choices=["low", "medium", "high", "xhigh"],
+        choices=VALID_REASONING_EFFORTS,
         help="Reasoning effort for Responses API live analysis",
     )
     check.add_argument("--timeout", type=float, default=10.0, help="OpenAI request timeout in seconds")
@@ -71,17 +95,16 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--json", action="store_true", help="Print agent-friendly JSON output")
     scan.add_argument("--no-tui", action="store_true", help="Print a non-interactive findings table")
     scan.add_argument("--exit-on-critical", action="store_true", help="Exit 1 if any CRITICAL issue is found")
-    scan.add_argument("--live", action="store_true", help="Use OpenAI analysis when OPENAI_API_KEY is set")
-    scan.add_argument("--model", default=DEFAULT_OPENAI_MODEL, help="OpenAI model to use with --live")
+    scan.add_argument("--live", action="store_true", default=None, help="Use OpenAI analysis when OPENAI_API_KEY is set")
+    scan.add_argument("--model", help="OpenAI model to use with --live")
     scan.add_argument(
         "--reasoning-effort",
-        default=DEFAULT_REASONING_EFFORT,
-        choices=["low", "medium", "high", "xhigh"],
+        choices=VALID_REASONING_EFFORTS,
         help="Reasoning effort for Responses API live analysis",
     )
     scan.add_argument("--timeout", type=float, default=10.0, help="OpenAI request timeout in seconds")
-    scan.add_argument("--max-files", type=int, default=500, help="Maximum Python files to scan")
-    scan.add_argument("--exclude-tests", action="store_true", help="Skip files under test/tests directories")
+    scan.add_argument("--max-files", type=int, help="Maximum Python files to scan")
+    scan.add_argument("--exclude-tests", action="store_true", default=None, help="Skip files under test/tests directories")
 
     demo = subparsers.add_parser("demo", help="Run a self-contained DiffSentinel demo")
     demo.add_argument("--path", help="Optional empty directory to use for the demo repo")
@@ -104,8 +127,35 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def run_init(args: argparse.Namespace) -> int:
+    console = Console()
+    result = initialize_project(
+        args.path,
+        model=args.model,
+        reasoning_effort=args.reasoning_effort,
+        force=args.force,
+        agent_docs=not args.no_agent_docs,
+        env_example=not args.no_env_example,
+        gitignore=not args.no_gitignore,
+    )
+    print_init_result(result, console)
+    return 0
+
+
+def run_doctor_command(args: argparse.Namespace) -> int:
+    checks = run_doctor(args.path, live=args.live)
+    if args.json:
+        print(checks_json(checks))
+    else:
+        print_doctor(checks, Console())
+    return 1 if any(check.status == "error" for check in checks) else 0
+
+
 def run_check(args: argparse.Namespace) -> int:
     console = Console()
+    settings = load_settings()
+    model = args.model or settings.openai_model
+    reasoning_effort = args.reasoning_effort or settings.reasoning_effort
     try:
         chunks = get_diff_chunks(staged=args.staged)
     except DiffError as exc:
@@ -121,10 +171,10 @@ def run_check(args: argparse.Namespace) -> int:
     for chunk in chunks:
         result = analyze_chunk(
             chunk,
-            model=args.model,
+            model=model,
             timeout=args.timeout,
             force_cache=args.force_cache,
-            reasoning_effort=args.reasoning_effort,
+            reasoning_effort=reasoning_effort,
         )
         records.extend(
             IssueRecord(file_path=chunk.filepath, issue=issue, excerpt=chunk.code_excerpt)
@@ -153,11 +203,17 @@ def run_check(args: argparse.Namespace) -> int:
 
 def run_scan(args: argparse.Namespace) -> int:
     console = Console()
+    settings = load_settings(args.path)
+    max_files = args.max_files if args.max_files is not None else settings.scan_max_files
+    exclude_tests = args.exclude_tests if args.exclude_tests is not None else settings.scan_exclude_tests
+    live = args.live if args.live is not None else settings.scan_live
+    model = args.model or settings.openai_model
+    reasoning_effort = args.reasoning_effort or settings.reasoning_effort
     try:
         scan = scan_project(
             args.path,
-            max_files=args.max_files,
-            include_tests=not args.exclude_tests,
+            max_files=max_files,
+            include_tests=not exclude_tests,
         )
     except (FileNotFoundError, NotADirectoryError, OSError) as exc:
         console.print(f"[bold red]DiffSentinel scan failed:[/bold red] {exc}")
@@ -167,10 +223,10 @@ def run_scan(args: argparse.Namespace) -> int:
     for chunk in scan.chunks:
         result = analyze_chunk(
             chunk,
-            model=args.model,
+            model=model,
             timeout=args.timeout,
-            force_cache=not args.live,
-            reasoning_effort=args.reasoning_effort,
+            force_cache=not live,
+            reasoning_effort=reasoning_effort,
         )
         absolute_file = str((scan.root / chunk.filepath).resolve())
         records.extend(

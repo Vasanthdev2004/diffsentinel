@@ -10,9 +10,7 @@ from .demo_cache import cached_result_for_chunk
 from .diff import DiffChunk
 from .rules import analyze_with_rules
 from .schema import AnalysisResult
-
-DEFAULT_OPENAI_MODEL = os.getenv("DIFFSENTINEL_MODEL", "gpt-5.5")
-DEFAULT_REASONING_EFFORT = os.getenv("DIFFSENTINEL_REASONING_EFFORT", "low")
+from .settings import DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT
 
 SYSTEM_PROMPT = """You are a performance-focused code auditor. Find ONLY performance problems:
 blocking calls in async functions, missing await, O(N^2) or worse loops in hot paths,
