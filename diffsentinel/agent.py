@@ -11,6 +11,7 @@ from typing import Any
 
 from rich import box
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 from .analyzer import analyze_chunk
@@ -58,6 +59,13 @@ class RestoreOutcome:
     run_id: str
     restored: list[dict[str, Any]]
     skipped: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class InteractiveAgentOutcome:
+    first_report: dict[str, Any]
+    final_report: dict[str, Any]
+    applied: ApplyOutcome | None
 
 
 class AgentError(RuntimeError):
@@ -188,6 +196,65 @@ def print_fix_plan(report: dict[str, Any], console: Console) -> None:
     console.print(f"Next action: [bold]{report['next_action']}[/bold]")
 
 
+def run_interactive_agent(
+    finding_set: FindingSet,
+    *,
+    console: Console,
+    auto_yes: bool = False,
+    quiet: bool = False,
+    fail_on_critical: bool = True,
+    rerun: bool = True,
+    live: bool = False,
+    model: str,
+    timeout: float,
+    reasoning_effort: str,
+) -> InteractiveAgentOutcome:
+    if not quiet:
+        console.print(Panel("DiffSentinel Agent", subtitle="inspect -> plan -> apply -> verify", border_style="cyan"))
+        console.print(f"[dim]Scope:[/dim] {finding_set.scope}    [dim]Root:[/dim] {finding_set.root}")
+    first_report = build_agent_report(finding_set, fail_on_critical=fail_on_critical)
+    if not quiet:
+        print_fix_plan(first_report, console)
+
+    safe_count = len(first_report["safe_fixes"])
+    if safe_count == 0:
+        if not quiet:
+            console.print("[bold green]No safe fixes to apply.[/bold green]")
+        return InteractiveAgentOutcome(first_report=first_report, final_report=first_report, applied=None)
+
+    if not auto_yes and not _confirm(console, f"Apply {safe_count} safe fixes?"):
+        if not quiet:
+            console.print("[bold yellow]No changes applied.[/bold yellow]")
+        return InteractiveAgentOutcome(first_report=first_report, final_report=first_report, applied=None)
+
+    if not quiet:
+        console.print("[bold cyan]Applying safe fixes...[/bold cyan]")
+    applied = apply_safe_fixes(finding_set.findings, root=finding_set.root)
+    if not quiet:
+        console.print(
+            f"[bold green]Applied {len(applied.applied)} safe fixes[/bold green] "
+            f"(run: {applied.run_id})"
+        )
+
+    if not rerun:
+        final_report = build_agent_report(finding_set, fail_on_critical=fail_on_critical, applied=applied)
+        return InteractiveAgentOutcome(first_report=first_report, final_report=final_report, applied=applied)
+
+    if not quiet:
+        console.print("[bold cyan]Rerunning guard...[/bold cyan]")
+    final_set = _rerun_finding_set(
+        finding_set,
+        live=live,
+        model=model,
+        timeout=timeout,
+        reasoning_effort=reasoning_effort,
+    )
+    final_report = build_agent_report(final_set, fail_on_critical=fail_on_critical, applied=applied)
+    if not quiet:
+        _print_final_status(final_report, console)
+    return InteractiveAgentOutcome(first_report=first_report, final_report=final_report, applied=applied)
+
+
 def apply_safe_fixes(findings: list[Finding], *, root: str | Path = ".") -> ApplyOutcome:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     root_path = Path(root).resolve()
@@ -261,6 +328,17 @@ def restore_run(*, root: str | Path = ".", run_id: str | None = None) -> Restore
 
 def outcome_json(outcome: ApplyOutcome | RestoreOutcome) -> str:
     return json.dumps(outcome.__dict__, default=str, indent=2)
+
+
+def interactive_outcome_json(outcome: InteractiveAgentOutcome) -> str:
+    return json.dumps(
+        {
+            "first_report": outcome.first_report,
+            "final_report": outcome.final_report,
+            "applied": _apply_outcome_dict(outcome.applied) if outcome.applied else None,
+        },
+        indent=2,
+    )
 
 
 def _from_scan(scan: ProjectScan, findings: list[Finding]) -> FindingSet:
@@ -391,3 +469,46 @@ def _apply_file_fixes(target: Path, findings: list[Finding], run_id: str) -> lis
         }
         for finding in findings
     ]
+
+
+def _confirm(console: Console, prompt: str) -> bool:
+    response = console.input(f"[bold yellow]{prompt}[/bold yellow] [Y/n] ").strip().lower()
+    return response in {"", "y", "yes"}
+
+
+def _rerun_finding_set(
+    finding_set: FindingSet,
+    *,
+    live: bool,
+    model: str,
+    timeout: float,
+    reasoning_effort: str,
+) -> FindingSet:
+    if finding_set.scope == "project":
+        return collect_project_findings(
+            path=finding_set.root,
+            live=live,
+            model=model,
+            timeout=timeout,
+            reasoning_effort=reasoning_effort,
+            max_files=finding_set.files_scanned or 500,
+            exclude_tests=False,
+        )
+    return collect_changed_findings(
+        cwd=finding_set.root,
+        live=live,
+        model=model,
+        timeout=timeout,
+        reasoning_effort=reasoning_effort,
+    )
+
+
+def _print_final_status(report: dict[str, Any], console: Console) -> None:
+    summary = report["summary"]
+    if summary["critical"] == 0:
+        console.print("[bold green]Clean. You can continue or commit.[/bold green]")
+        return
+    console.print(
+        f"[bold red]Still blocked:[/bold red] {summary['critical']} critical issues remain. "
+        f"Next action: {report['next_action']}"
+    )

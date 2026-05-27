@@ -14,10 +14,12 @@ from .agent import (
     build_agent_report,
     collect_changed_findings,
     collect_project_findings,
+    interactive_outcome_json,
     outcome_json,
     print_fix_plan,
     report_json,
     restore_run,
+    run_interactive_agent,
 )
 from .analyzer import analyze_chunk
 from .demo import run_agent_demo, run_demo
@@ -53,6 +55,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_scan(args)
     if args.command == "guard":
         return run_guard(args)
+    if args.command == "agent":
+        return run_agent(args)
     if args.command == "fix-plan":
         return run_fix_plan(args)
     if args.command == "apply-safe":
@@ -132,6 +136,13 @@ def build_parser() -> argparse.ArgumentParser:
     guard.add_argument("--json", action="store_true", help="Print the v2 agent JSON report")
     guard.add_argument("--apply-safe", action="store_true", help="Apply all high-confidence safe fixes before reporting")
     guard.add_argument("--fail-on-critical", action="store_true", help="Exit 1 when CRITICAL issues are present")
+
+    agent = subparsers.add_parser("agent", help="Interactive DiffSentinel coding-agent companion")
+    _add_agent_scope_args(agent)
+    agent.add_argument("--yes", action="store_true", help="Apply safe fixes without prompting")
+    agent.add_argument("--json", action="store_true", help="Print the interaction outcome as JSON")
+    agent.add_argument("--no-rerun", action="store_true", help="Do not rerun guard after applying safe fixes")
+    agent.add_argument("--fail-on-critical", action="store_true", help="Exit 1 if final report still has CRITICAL issues")
 
     fix_plan = subparsers.add_parser("fix-plan", help="Show safe fixes and manual-review items")
     _add_agent_scope_args(fix_plan)
@@ -342,6 +353,33 @@ def run_guard(args: argparse.Namespace) -> int:
     else:
         print_fix_plan(report, console)
     return int(report["exit_policy"]["exit_code"])
+
+
+def run_agent(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        finding_set = _collect_agent_findings(args)
+        settings = load_settings(args.path)
+        model = args.model or settings.openai_model
+        reasoning_effort = args.reasoning_effort or settings.reasoning_effort
+        outcome = run_interactive_agent(
+            finding_set,
+            console=console,
+            auto_yes=args.yes,
+            quiet=args.json,
+            fail_on_critical=args.fail_on_critical,
+            rerun=not args.no_rerun,
+            live=args.live,
+            model=model,
+            timeout=args.timeout,
+            reasoning_effort=reasoning_effort,
+        )
+    except AgentError as exc:
+        console.print(f"[bold red]DiffSentinel agent failed:[/bold red] {exc}")
+        return 2
+    if args.json:
+        print(interactive_outcome_json(outcome))
+    return int(outcome.final_report["exit_policy"]["exit_code"])
 
 
 def run_fix_plan(args: argparse.Namespace) -> int:
