@@ -69,6 +69,14 @@ Without `OPENAI_API_KEY`, DiffSentinel still works through the local rules engin
 
 ## Demo From Scratch
 
+Fastest path:
+
+```powershell
+diffsentinel demo
+```
+
+That command creates a temporary git repo, introduces the async blocking bug, detects it, applies the safe fix, and prints the before/after code.
+
 Create a tiny repo with a clean baseline:
 
 ```powershell

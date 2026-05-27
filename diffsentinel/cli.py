@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Sequence
 
 from rich.console import Console
 
 from .analyzer import analyze_chunk
+from .demo import run_demo
 from .diff import DiffError, get_diff_chunks
 from .patcher import PatchError, apply_issue
 from .rules import can_auto_apply
@@ -27,6 +29,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "check":
         return run_check(args)
+    if args.command == "demo":
+        return run_demo_command(args)
     parser.print_help()
     return 2
 
@@ -46,6 +50,10 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--force-cache", action="store_true", help="Skip OpenAI and use the local demo cache")
     check.add_argument("--model", default="gpt-5-mini", help="OpenAI model to use when OPENAI_API_KEY is set")
     check.add_argument("--timeout", type=float, default=10.0, help="OpenAI request timeout in seconds")
+
+    demo = subparsers.add_parser("demo", help="Run a self-contained DiffSentinel demo")
+    demo.add_argument("--path", help="Optional empty directory to use for the demo repo")
+    demo.add_argument("--no-apply", action="store_true", help="Show the finding without applying the safe fix")
     return parser
 
 
@@ -93,6 +101,20 @@ def run_check(args: argparse.Namespace) -> int:
 
     show_review(targets, console=console)
     return _exit_code(records, args.exit_on_critical)
+
+
+def run_demo_command(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        run_demo(
+            path=Path(args.path) if args.path else None,
+            apply_fix=not args.no_apply,
+            console=console,
+        )
+    except Exception as exc:
+        console.print(f"[bold red]DiffSentinel demo failed:[/bold red] {exc}")
+        return 2
+    return 0
 
 
 def _json_records(records: list[IssueRecord]) -> str:

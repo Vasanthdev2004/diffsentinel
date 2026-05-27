@@ -5,6 +5,7 @@
 - Stronger offline analyzer for Python async and allocation traps
 - Non-interactive `--apply-first` mode for reliable demos
 - `--exit-on-critical` mode for CI-style guardrails
+- Self-contained `diffsentinel demo` command for judges and checkpoint videos
 - Public GitHub CI and MIT license
 - Clear README with honest limits and install/demo paths
 

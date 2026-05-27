@@ -60,6 +60,37 @@ Repo: https://github.com/Vasanthdev2004/diffsentinel
 
 Next: demo video + README visuals.
 
+## LinkedIn Post 3
+
+Day 2 update for the #OpenAIHackathon:
+
+Today we made DiffSentinel much easier to try.
+
+New command:
+
+```powershell
+diffsentinel demo
+```
+
+It creates a temporary git repo, introduces a Python async performance bug, detects it, applies the safe fix, and prints the before/after code.
+
+This matters because the product can now be understood in one command:
+
+`time.sleep(1)` inside `async def` becomes `await asyncio.sleep(1)`.
+
+Current status:
+
+- core CLI working
+- local/offline analysis working
+- safe apply working
+- self-contained demo working
+- tests passing: 11
+- public repo live
+
+Repo: https://github.com/Vasanthdev2004/diffsentinel
+
+#OpenAIHackathon
+
 ## Short Product Description
 
 DiffSentinel is a terminal-native performance regression guard for your current git diff. It catches high-confidence async and hot-path mistakes before code review, shows them in a focused terminal UI, and can safely apply simple fixes with a backup.

@@ -63,6 +63,7 @@ Completed:
 - Rich terminal UI.
 - Safe apply flow with backup and atomic write.
 - `--json`, `--no-tui`, `--apply-first`, and `--exit-on-critical` flags.
+- Self-contained `diffsentinel demo` command for easy proof.
 - Demo samples for async blocking, missing await, requests blocking, clone in loop, and nested loops.
 - MIT license, roadmap, README, and GitHub Actions CI.
 - CI passing on Python 3.11 and 3.12.
