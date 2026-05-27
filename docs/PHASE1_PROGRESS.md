@@ -1,6 +1,6 @@
 # DiffSentinel Phase 1 Progress
 
-Use this as the source text for the hackathon progress form.
+Use this as source text for the hackathon progress form. The current Phase 1 submission pack is in `docs/PHASE1_SUBMISSION_PACK.md`.
 
 ## Project Name
 
@@ -8,25 +8,24 @@ DiffSentinel
 
 ## One-Line Description
 
-DiffSentinel is a terminal-native performance regression guard that reviews your current `git diff`, flags async and hot-path mistakes, and can safely apply simple fixes before commit.
+DiffSentinel is an agentic code safety layer that audits local changes from developers or coding agents, flags performance and latency risks, and safely applies high-confidence fixes before commit.
 
 ## Problem Statement
 
-Developers often introduce small performance regressions while moving fast: blocking calls inside async handlers, missing awaits, repeated object copies, or inefficient collection usage. These bugs are easy to miss locally and usually get caught late in PR review, CI, or production behavior.
+Developers and coding agents often introduce small performance regressions while moving fast: blocking calls inside async handlers, missing awaits, repeated object copies, or inefficient collection usage. These bugs are easy to miss locally and usually get caught late in PR review, CI, or production behavior.
 
 ## Target User
 
-Backend/API developers, hackathon builders, and AI-assisted coders who work in the terminal and want fast feedback before committing code.
+Backend/API developers, hackathon builders, and AI-assisted coders using tools like Codex, Claude Code, or Gemini CLI who want fast local feedback before committing generated code.
 
 ## Product Journey
 
 1. Developer changes code locally.
-2. Developer runs `diffsentinel check`.
-3. DiffSentinel reads the current `git diff`.
+2. Developer or coding agent runs `diffsentinel agent` or `diffsentinel guard`.
+3. DiffSentinel reads the current `git diff` or scans the project.
 4. It analyzes changed Python snippets through OpenAI Structured Outputs when available, or a local rules engine when offline.
-5. The terminal UI shows performance issues with severity, impact, and a suggested fix.
-6. For high-confidence single-line fixes, the developer can press `A` or run `--apply-first`.
-7. DiffSentinel creates a backup and atomically rewrites the file.
+5. It returns a fix plan with safe fixes and manual-review issues.
+6. It can apply safe fixes, save rollback metadata, rerun guard, and recommend continue/block.
 
 ## MVP Scope
 
@@ -39,6 +38,8 @@ Must-have:
 - Backup the original file before applying fixes.
 - Work without network through a local rules fallback.
 - Provide JSON output for scripts.
+- Provide agent-facing guard output.
+- Apply safe fixes reversibly.
 
 Nice-to-have:
 
@@ -67,6 +68,10 @@ Completed:
 - Demo samples for async blocking, missing await, requests blocking, clone in loop, and nested loops.
 - MIT license, roadmap, README, and GitHub Actions CI.
 - CI passing on Python 3.11 and 3.12.
+- Agent Guard Mode with v2 JSON.
+- Interactive `diffsentinel agent` flow.
+- `diffsentinel demo-agent` for the checkpoint demo.
+- Phase 1 pitch deck and submission pack.
 
 ## Execution Plan
 
