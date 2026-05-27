@@ -175,7 +175,7 @@ def print_init_result(result: InitResult, console: Console) -> None:
             "Next:\n"
             "1. Set OPENAI_API_KEY in your shell or secret manager.\n"
             "2. Run `diffsentinel doctor`.\n"
-            "3. Run `diffsentinel scan . --json --exit-on-critical` after coding-agent edits.",
+            "3. Run `diffsentinel guard --changed --json --fail-on-critical` after coding-agent edits.",
             title="Setup checklist",
             border_style="green",
         )
@@ -243,16 +243,20 @@ def _upsert_agent_docs(path: Path) -> bool:
 After making code changes, run:
 
 ```powershell
-diffsentinel scan . --json --exit-on-critical
+diffsentinel guard --changed --json --fail-on-critical
 ```
 
 If the command reports `CRITICAL` issues, fix safe items first or explain why manual review is required. Use:
 
 ```powershell
-diffsentinel check --json --exit-on-critical
+diffsentinel fix-plan --changed
 ```
 
-when only the current git diff should be audited.
+For full-project audits, run:
+
+```powershell
+diffsentinel guard --project --json --fail-on-critical
+```
 {AGENT_END}
 """
     existing = path.read_text(encoding="utf-8") if path.exists() else ""

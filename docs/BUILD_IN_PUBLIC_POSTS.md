@@ -88,7 +88,9 @@ Current status:
 - project-wide scan working
 - agent-friendly JSON output working
 - onboarding and doctor commands working
-- tests passing: 25
+- Agent Guard Mode working
+- reversible safe apply and restore working
+- tests passing: 29
 - public repo live
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel

@@ -4,14 +4,18 @@
 After making code changes, run:
 
 ```powershell
-diffsentinel scan . --json --exit-on-critical
+diffsentinel guard --changed --json --fail-on-critical
 ```
 
 If the command reports `CRITICAL` issues, fix safe items first or explain why manual review is required. Use:
 
 ```powershell
-diffsentinel check --json --exit-on-critical
+diffsentinel fix-plan --changed
 ```
 
-when only the current git diff should be audited.
+For full-project audits, run:
+
+```powershell
+diffsentinel guard --project --json --fail-on-critical
+```
 <!-- diffsentinel:end -->

@@ -9,3 +9,7 @@ reasoning_effort = "low"
 max_files = 500
 exclude_tests = false
 live = false
+
+[agent]
+default_scope = "changed"
+fail_on_critical = true

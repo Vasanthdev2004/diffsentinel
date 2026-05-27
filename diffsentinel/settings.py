@@ -20,6 +20,8 @@ class DiffSentinelSettings:
     scan_max_files: int = 500
     scan_exclude_tests: bool = False
     scan_live: bool = False
+    agent_default_scope: str = "changed"
+    agent_fail_on_critical: bool = True
     config_path: Path | None = None
 
 
@@ -31,6 +33,7 @@ def load_settings(start: str | Path = ".") -> DiffSentinelSettings:
 
     openai = data.get("openai", {})
     scan = data.get("scan", {})
+    agent = data.get("agent", {})
 
     model = str(openai.get("model", DEFAULT_OPENAI_MODEL))
     reasoning_effort = str(openai.get("reasoning_effort", DEFAULT_REASONING_EFFORT))
@@ -46,6 +49,8 @@ def load_settings(start: str | Path = ".") -> DiffSentinelSettings:
         scan_max_files=int(scan.get("max_files", 500)),
         scan_exclude_tests=bool(scan.get("exclude_tests", False)),
         scan_live=bool(scan.get("live", False)),
+        agent_default_scope=str(agent.get("default_scope", "changed")),
+        agent_fail_on_critical=bool(agent.get("fail_on_critical", True)),
         config_path=config_path,
     )
 
@@ -73,4 +78,8 @@ reasoning_effort = "{reasoning_effort}"
 max_files = 500
 exclude_tests = false
 live = false
+
+[agent]
+default_scope = "changed"
+fail_on_critical = true
 """

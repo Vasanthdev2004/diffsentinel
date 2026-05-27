@@ -8,6 +8,17 @@ from typing import Sequence
 
 from rich.console import Console
 
+from .agent import (
+    AgentError,
+    apply_safe_fixes,
+    build_agent_report,
+    collect_changed_findings,
+    collect_project_findings,
+    outcome_json,
+    print_fix_plan,
+    report_json,
+    restore_run,
+)
 from .analyzer import analyze_chunk
 from .demo import run_demo
 from .diff import DiffError, get_diff_chunks
@@ -40,6 +51,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_check(args)
     if args.command == "scan":
         return run_scan(args)
+    if args.command == "guard":
+        return run_guard(args)
+    if args.command == "fix-plan":
+        return run_fix_plan(args)
+    if args.command == "apply-safe":
+        return run_apply_safe(args)
+    if args.command == "restore":
+        return run_restore(args)
     if args.command == "demo":
         return run_demo_command(args)
     if args.command == "install-hook":
@@ -106,6 +125,25 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--max-files", type=int, help="Maximum Python files to scan")
     scan.add_argument("--exclude-tests", action="store_true", default=None, help="Skip files under test/tests directories")
 
+    guard = subparsers.add_parser("guard", help="Agent-facing guardrail for changed code or whole projects")
+    _add_agent_scope_args(guard)
+    guard.add_argument("--json", action="store_true", help="Print the v2 agent JSON report")
+    guard.add_argument("--apply-safe", action="store_true", help="Apply all high-confidence safe fixes before reporting")
+    guard.add_argument("--fail-on-critical", action="store_true", help="Exit 1 when CRITICAL issues are present")
+
+    fix_plan = subparsers.add_parser("fix-plan", help="Show safe fixes and manual-review items")
+    _add_agent_scope_args(fix_plan)
+    fix_plan.add_argument("--json", action="store_true", help="Print the v2 agent JSON report")
+
+    apply_safe = subparsers.add_parser("apply-safe", help="Apply all high-confidence safe fixes")
+    _add_agent_scope_args(apply_safe)
+    apply_safe.add_argument("--json", action="store_true", help="Print apply outcome as JSON")
+
+    restore = subparsers.add_parser("restore", help="Restore files from a DiffSentinel safe-apply run")
+    restore.add_argument("path", nargs="?", default=".", help="Project root containing .diffsentinel/runs")
+    restore.add_argument("--run-id", help="Run id to restore; defaults to latest")
+    restore.add_argument("--json", action="store_true", help="Print restore outcome as JSON")
+
     demo = subparsers.add_parser("demo", help="Run a self-contained DiffSentinel demo")
     demo.add_argument("--path", help="Optional empty directory to use for the demo repo")
     demo.add_argument("--no-apply", action="store_true", help="Show the finding without applying the safe fix")
@@ -125,6 +163,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not restore a hook that DiffSentinel backed up during install",
     )
     return parser
+
+
+def _add_agent_scope_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("path", nargs="?", default=".", help="Project directory")
+    parser.add_argument("--changed", action="store_true", help="Audit current git diff; default unless --project is used")
+    parser.add_argument("--project", action="store_true", help="Audit the whole project")
+    parser.add_argument("--staged", action="store_true", help="Use staged changes for --changed mode")
+    parser.add_argument("--live", action="store_true", help="Use OpenAI analysis when OPENAI_API_KEY is set")
+    parser.add_argument("--model", help="OpenAI model to use with --live")
+    parser.add_argument(
+        "--reasoning-effort",
+        choices=VALID_REASONING_EFFORTS,
+        help="Reasoning effort for Responses API live analysis",
+    )
+    parser.add_argument("--timeout", type=float, default=10.0, help="OpenAI request timeout in seconds")
+    parser.add_argument("--max-files", type=int, help="Maximum Python files to scan in --project mode")
+    parser.add_argument("--exclude-tests", action="store_true", default=None, help="Skip tests in --project mode")
 
 
 def run_init(args: argparse.Namespace) -> int:
@@ -267,6 +322,73 @@ def run_scan(args: argparse.Namespace) -> int:
     return _exit_code(records, args.exit_on_critical)
 
 
+def run_guard(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        finding_set = _collect_agent_findings(args)
+        applied = apply_safe_fixes(finding_set.findings, root=finding_set.root) if args.apply_safe else None
+    except AgentError as exc:
+        console.print(f"[bold red]DiffSentinel guard failed:[/bold red] {exc}")
+        return 2
+    report = build_agent_report(finding_set, fail_on_critical=args.fail_on_critical, applied=applied)
+    if args.json:
+        print(report_json(report))
+    else:
+        print_fix_plan(report, console)
+    return int(report["exit_policy"]["exit_code"])
+
+
+def run_fix_plan(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        finding_set = _collect_agent_findings(args)
+    except AgentError as exc:
+        console.print(f"[bold red]DiffSentinel fix-plan failed:[/bold red] {exc}")
+        return 2
+    report = build_agent_report(finding_set, fail_on_critical=False)
+    if args.json:
+        print(report_json(report))
+    else:
+        print_fix_plan(report, console)
+    return 0
+
+
+def run_apply_safe(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        finding_set = _collect_agent_findings(args)
+        outcome = apply_safe_fixes(finding_set.findings, root=finding_set.root)
+    except AgentError as exc:
+        console.print(f"[bold red]DiffSentinel apply-safe failed:[/bold red] {exc}")
+        return 2
+    if args.json:
+        print(outcome_json(outcome))
+    else:
+        console.print(
+            f"[bold green]Applied {len(outcome.applied)} safe fixes[/bold green] "
+            f"(run: {outcome.run_id}, metadata: {outcome.metadata_path})"
+        )
+        if outcome.skipped:
+            console.print(f"[bold yellow]Skipped {len(outcome.skipped)} findings[/bold yellow]")
+    return 0
+
+
+def run_restore(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        outcome = restore_run(root=args.path, run_id=args.run_id)
+    except AgentError as exc:
+        console.print(f"[bold red]DiffSentinel restore failed:[/bold red] {exc}")
+        return 2
+    if args.json:
+        print(outcome_json(outcome))
+    else:
+        console.print(f"[bold green]Restored {len(outcome.restored)} files[/bold green] from run {outcome.run_id}")
+        if outcome.skipped:
+            console.print(f"[bold yellow]Skipped {len(outcome.skipped)} files[/bold yellow]")
+    return 0
+
+
 def run_demo_command(args: argparse.Namespace) -> int:
     console = Console()
     try:
@@ -362,6 +484,32 @@ def _summary(records: list[IssueRecord], scan: ProjectScan | None) -> dict[str, 
         summary["files_scanned"] = scan.files_scanned
         summary["files_skipped"] = scan.files_skipped
     return summary
+
+
+def _collect_agent_findings(args: argparse.Namespace):
+    settings = load_settings(args.path)
+    model = args.model or settings.openai_model
+    reasoning_effort = args.reasoning_effort or settings.reasoning_effort
+    if args.project:
+        max_files = args.max_files if args.max_files is not None else settings.scan_max_files
+        exclude_tests = args.exclude_tests if args.exclude_tests is not None else settings.scan_exclude_tests
+        return collect_project_findings(
+            path=args.path,
+            live=args.live,
+            model=model,
+            timeout=args.timeout,
+            reasoning_effort=reasoning_effort,
+            max_files=max_files,
+            exclude_tests=exclude_tests,
+        )
+    return collect_changed_findings(
+        cwd=args.path,
+        staged=args.staged,
+        live=args.live,
+        model=model,
+        timeout=args.timeout,
+        reasoning_effort=reasoning_effort,
+    )
 
 
 if __name__ == "__main__":

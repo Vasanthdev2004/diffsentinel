@@ -39,6 +39,8 @@ Completed today:
 - Added agent-friendly JSON output with summary fields for coding agents and CI.
 - Added onboarding commands: `diffsentinel init` and `diffsentinel doctor`.
 - Added project config and generated `AGENTS.md` instructions for coding agents.
+- Added Agent Guard Mode: `guard`, `fix-plan`, `apply-safe`, and `restore`.
+- Added Agent JSON v2 and reversible safe-apply run metadata.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.
@@ -61,7 +63,7 @@ diffsentinel demo
 Test result:
 
 ```text
-25 passed
+29 passed
 ```
 
 ## Next Steps

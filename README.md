@@ -41,10 +41,12 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 
 - Local `git diff` analysis
 - Whole-project Python scanning with `diffsentinel scan`
+- Agent Guard Mode with `diffsentinel guard`
 - OpenAI Structured Outputs when `OPENAI_API_KEY` is set
 - Offline local rules engine when no API key is available
 - Rich terminal UI with severity colors and safe apply
 - Agent-friendly `--json` output for scripts and coding agents
+- `fix-plan`, `apply-safe`, and `restore` for reversible safe fixes
 - `--apply-first` for deterministic demos
 - `--exit-on-critical` for CI-style checks
 - `install-hook` to block critical staged regressions before commit
@@ -143,6 +145,10 @@ diffsentinel check
 diffsentinel init
 diffsentinel doctor
 diffsentinel scan .
+diffsentinel guard --changed --json --fail-on-critical
+diffsentinel fix-plan --changed
+diffsentinel apply-safe --changed
+diffsentinel restore
 diffsentinel check --json
 diffsentinel scan . --json --exit-on-critical
 diffsentinel scan . --live --model gpt-5.5 --reasoning-effort low --json
@@ -174,10 +180,19 @@ diffsentinel scan .
 Coding agents and CI can consume a stable JSON contract:
 
 ```powershell
-diffsentinel scan . --json --exit-on-critical
+diffsentinel guard --changed --json --fail-on-critical
 ```
 
-The JSON payload includes `schema_version`, `scope`, `summary`, and an `issues` list with file paths, severity, category, explanation, impact, confidence, and suggested fix. This lets CLI coding agents call DiffSentinel after they modify code and decide whether to patch, ask the user, or stop.
+The v2 JSON payload includes `summary`, `issues`, `safe_fixes`, `manual_review`, `blocked_reason`, `next_action`, and `exit_policy`. This lets CLI coding agents call DiffSentinel after they modify code and decide whether to patch, ask the user, or stop.
+
+To apply only high-confidence safe fixes:
+
+```powershell
+diffsentinel apply-safe --changed
+diffsentinel restore
+```
+
+`apply-safe` writes run metadata to `.diffsentinel/runs/`, and `restore` rolls back the latest safe-apply run.
 
 For higher-accuracy live audits:
 
@@ -188,7 +203,7 @@ diffsentinel scan . --live --model gpt-5.5 --reasoning-effort medium --json
 For coding-agent workflows, keep this command in your agent instructions:
 
 ```powershell
-diffsentinel scan . --json --exit-on-critical
+diffsentinel guard --changed --json --fail-on-critical
 ```
 
 ## What It Detects Today

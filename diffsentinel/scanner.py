@@ -17,6 +17,7 @@ EXCLUDED_DIRS = {
     ".pytest_cache",
     ".mypy_cache",
     ".ruff_cache",
+    ".diffsentinel",
     ".tox",
     "node_modules",
     "dist",

@@ -20,7 +20,7 @@ def test_initialize_project_creates_config_env_agent_docs_and_gitignore(tmp_path
     assert "OPENAI_API_KEY" not in config.read_text(encoding="utf-8").splitlines()[0]
     assert 'model = "gpt-5.5"' in config.read_text(encoding="utf-8")
     assert "OPENAI_API_KEY=your-openai-api-key-here" in env_example.read_text(encoding="utf-8")
-    assert "diffsentinel scan . --json --exit-on-critical" in agents.read_text(encoding="utf-8")
+    assert "diffsentinel guard --changed --json --fail-on-critical" in agents.read_text(encoding="utf-8")
     assert ".env" in gitignore.read_text(encoding="utf-8")
 
 
