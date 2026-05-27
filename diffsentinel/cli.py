@@ -20,7 +20,7 @@ from .agent import (
     restore_run,
 )
 from .analyzer import analyze_chunk
-from .demo import run_demo
+from .demo import run_agent_demo, run_demo
 from .diff import DiffError, get_diff_chunks
 from .hooks import HookError, install_pre_commit_hook, uninstall_pre_commit_hook
 from .onboarding import checks_json, initialize_project, print_doctor, print_init_result, run_doctor
@@ -61,6 +61,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_restore(args)
     if args.command == "demo":
         return run_demo_command(args)
+    if args.command == "demo-agent":
+        return run_demo_agent_command(args)
     if args.command == "install-hook":
         return run_install_hook(args)
     if args.command == "uninstall-hook":
@@ -147,6 +149,10 @@ def build_parser() -> argparse.ArgumentParser:
     demo = subparsers.add_parser("demo", help="Run a self-contained DiffSentinel demo")
     demo.add_argument("--path", help="Optional empty directory to use for the demo repo")
     demo.add_argument("--no-apply", action="store_true", help="Show the finding without applying the safe fix")
+
+    demo_agent = subparsers.add_parser("demo-agent", help="Run the full coding-agent guardrail demo")
+    demo_agent.add_argument("--path", help="Optional empty directory to use for the demo repo")
+    demo_agent.add_argument("--keep-fixed", action="store_true", help="Do not restore the original regression at the end")
 
     install_hook = subparsers.add_parser("install-hook", help="Install a DiffSentinel pre-commit hook")
     install_hook.add_argument("--force", action="store_true", help="Back up and replace an existing pre-commit hook")
@@ -399,6 +405,20 @@ def run_demo_command(args: argparse.Namespace) -> int:
         )
     except Exception as exc:
         console.print(f"[bold red]DiffSentinel demo failed:[/bold red] {exc}")
+        return 2
+    return 0
+
+
+def run_demo_agent_command(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        run_agent_demo(
+            path=Path(args.path) if args.path else None,
+            restore_after=not args.keep_fixed,
+            console=console,
+        )
+    except Exception as exc:
+        console.print(f"[bold red]DiffSentinel agent demo failed:[/bold red] {exc}")
         return 2
     return 0
 
