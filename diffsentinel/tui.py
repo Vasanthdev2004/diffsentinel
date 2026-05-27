@@ -33,6 +33,7 @@ class IssueTarget:
     file_path: str
     issue: Issue
     excerpt: str
+    apply_path: str | None = None
 
 
 def show_review(
@@ -70,7 +71,7 @@ def show_review(
                 status_message = "Manual review required; safe apply is disabled for this issue"
                 continue
             try:
-                result = apply_issue(target.file_path, target.issue)
+                result = apply_issue(target.apply_path or target.file_path, target.issue)
             except PatchError as exc:
                 status_message = f"Apply failed: {exc}"
                 continue

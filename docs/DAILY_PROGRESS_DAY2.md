@@ -35,6 +35,8 @@ Completed today:
 
 - Added `diffsentinel demo` command.
 - Added `diffsentinel install-hook` and `diffsentinel uninstall-hook` for pre-commit protection.
+- Added `diffsentinel scan` to audit real project folders, not only git diffs.
+- Added agent-friendly JSON output with summary fields for coding agents and CI.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.
@@ -57,7 +59,7 @@ diffsentinel demo
 Test result:
 
 ```text
-15 passed
+20 passed
 ```
 
 ## Next Steps

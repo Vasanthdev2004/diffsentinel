@@ -40,10 +40,11 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 ## Features
 
 - Local `git diff` analysis
+- Whole-project Python scanning with `diffsentinel scan`
 - OpenAI Structured Outputs when `OPENAI_API_KEY` is set
 - Offline local rules engine when no API key is available
 - Rich terminal UI with severity colors and safe apply
-- `--json` output for scripts
+- Agent-friendly `--json` output for scripts and coding agents
 - `--apply-first` for deterministic demos
 - `--exit-on-critical` for CI-style checks
 - `install-hook` to block critical staged regressions before commit
@@ -113,7 +114,9 @@ diffsentinel check --force-cache --apply-first
 
 ```powershell
 diffsentinel check
+diffsentinel scan .
 diffsentinel check --json
+diffsentinel scan . --json --exit-on-critical
 diffsentinel check --no-tui
 diffsentinel check --apply-first
 diffsentinel check --exit-on-critical
@@ -129,6 +132,23 @@ diffsentinel check --staged --exit-on-critical --no-tui --force-cache
 ```
 
 Use `diffsentinel install-hook --live` if you want the hook to use live OpenAI analysis when `OPENAI_API_KEY` is available.
+
+## Real Project And Agent Usage
+
+Run against any Python project, even when there is no git diff:
+
+```powershell
+cd path\to\your\project
+diffsentinel scan .
+```
+
+Coding agents and CI can consume a stable JSON contract:
+
+```powershell
+diffsentinel scan . --json --exit-on-critical
+```
+
+The JSON payload includes `schema_version`, `scope`, `summary`, and an `issues` list with file paths, severity, category, explanation, impact, confidence, and suggested fix. This lets CLI coding agents call DiffSentinel after they modify code and decide whether to patch, ask the user, or stop.
 
 ## What It Detects Today
 

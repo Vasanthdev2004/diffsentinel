@@ -49,6 +49,9 @@ def test_cli_json_uses_cache_for_primary_demo(tmp_path: Path, monkeypatch, capsy
 
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
+    assert payload["schema_version"] == "diffsentinel.agent.v1"
+    assert payload["scope"] == "diff"
+    assert payload["summary"]["critical"] == 1
     assert payload["issues"][0]["severity"] == "CRITICAL"
     assert payload["issues"][0]["auto_applyable"] is True
     assert payload["issues"][0]["optimized_code"] == "    await asyncio.sleep(1)"

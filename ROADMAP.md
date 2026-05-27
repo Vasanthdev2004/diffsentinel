@@ -7,6 +7,7 @@
 - `--exit-on-critical` mode for CI-style guardrails
 - Self-contained `diffsentinel demo` command for judges and checkpoint videos
 - `install-hook` / `uninstall-hook` commands for pre-commit protection
+- `scan` command for full-project Python audits and agent-friendly JSON
 - Public GitHub CI and MIT license
 - Clear README with honest limits and install/demo paths
 

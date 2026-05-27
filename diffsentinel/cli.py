@@ -14,6 +14,7 @@ from .diff import DiffError, get_diff_chunks
 from .hooks import HookError, install_pre_commit_hook, uninstall_pre_commit_hook
 from .patcher import PatchError, apply_issue
 from .rules import can_auto_apply
+from .scanner import ProjectScan, scan_project
 from .schema import Issue
 from .tui import IssueTarget, show_review
 
@@ -23,6 +24,7 @@ class IssueRecord:
     file_path: str
     issue: Issue
     excerpt: str
+    apply_path: str | None = None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -30,6 +32,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "check":
         return run_check(args)
+    if args.command == "scan":
+        return run_scan(args)
     if args.command == "demo":
         return run_demo_command(args)
     if args.command == "install-hook":
@@ -55,6 +59,17 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--force-cache", action="store_true", help="Skip OpenAI and use the local demo cache")
     check.add_argument("--model", default="gpt-5-mini", help="OpenAI model to use when OPENAI_API_KEY is set")
     check.add_argument("--timeout", type=float, default=10.0, help="OpenAI request timeout in seconds")
+
+    scan = subparsers.add_parser("scan", help="Audit all Python files in a project")
+    scan.add_argument("path", nargs="?", default=".", help="Project directory to scan")
+    scan.add_argument("--json", action="store_true", help="Print agent-friendly JSON output")
+    scan.add_argument("--no-tui", action="store_true", help="Print a non-interactive findings table")
+    scan.add_argument("--exit-on-critical", action="store_true", help="Exit 1 if any CRITICAL issue is found")
+    scan.add_argument("--live", action="store_true", help="Use OpenAI analysis when OPENAI_API_KEY is set")
+    scan.add_argument("--model", default="gpt-5-mini", help="OpenAI model to use with --live")
+    scan.add_argument("--timeout", type=float, default=10.0, help="OpenAI request timeout in seconds")
+    scan.add_argument("--max-files", type=int, default=500, help="Maximum Python files to scan")
+    scan.add_argument("--exclude-tests", action="store_true", help="Skip files under test/tests directories")
 
     demo = subparsers.add_parser("demo", help="Run a self-contained DiffSentinel demo")
     demo.add_argument("--path", help="Optional empty directory to use for the demo repo")
@@ -104,7 +119,7 @@ def run_check(args: argparse.Namespace) -> int:
         )
 
     if args.json:
-        print(_json_records(records))
+        print(_json_records(records, scope="diff"))
         return _exit_code(records, args.exit_on_critical)
 
     if args.apply_first:
@@ -113,6 +128,65 @@ def run_check(args: argparse.Namespace) -> int:
 
     targets = [
         IssueTarget(file_path=record.file_path, issue=record.issue, excerpt=record.excerpt)
+        for record in records
+    ]
+    if args.no_tui:
+        show_review(targets, console=console, interactive=False)
+        return _exit_code(records, args.exit_on_critical)
+
+    show_review(targets, console=console)
+    return _exit_code(records, args.exit_on_critical)
+
+
+def run_scan(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        scan = scan_project(
+            args.path,
+            max_files=args.max_files,
+            include_tests=not args.exclude_tests,
+        )
+    except (FileNotFoundError, NotADirectoryError, OSError) as exc:
+        console.print(f"[bold red]DiffSentinel scan failed:[/bold red] {exc}")
+        return 2
+
+    records: list[IssueRecord] = []
+    for chunk in scan.chunks:
+        result = analyze_chunk(
+            chunk,
+            model=args.model,
+            timeout=args.timeout,
+            force_cache=not args.live,
+        )
+        absolute_file = str((scan.root / chunk.filepath).resolve())
+        records.extend(
+            IssueRecord(
+                file_path=chunk.filepath,
+                apply_path=absolute_file,
+                issue=issue,
+                excerpt=chunk.code_excerpt,
+            )
+            for issue in result.issues
+        )
+
+    if args.json:
+        print(_json_records(records, scope="project", scan=scan))
+        return _exit_code(records, args.exit_on_critical)
+
+    if not records:
+        console.print(
+            f"[bold green]DiffSentinel[/bold green] scanned {scan.files_scanned} Python files. "
+            "No performance issues found."
+        )
+        return 0
+
+    targets = [
+        IssueTarget(
+            file_path=record.file_path,
+            apply_path=record.apply_path,
+            issue=record.issue,
+            excerpt=record.excerpt,
+        )
         for record in records
     ]
     if args.no_tui:
@@ -166,11 +240,15 @@ def run_uninstall_hook(args: argparse.Namespace) -> int:
     return 0
 
 
-def _json_records(records: list[IssueRecord]) -> str:
+def _json_records(records: list[IssueRecord], *, scope: str, scan: ProjectScan | None = None) -> str:
     payload = {
+        "schema_version": "diffsentinel.agent.v1",
+        "scope": scope,
+        "summary": _summary(records, scan),
         "issues": [
             {
                 "file_path": record.file_path,
+                **({"absolute_path": record.apply_path} if record.apply_path else {}),
                 "auto_applyable": can_auto_apply(record.issue),
                 **record.issue.model_dump(),
             }
@@ -187,7 +265,7 @@ def _apply_first(records: list[IssueRecord], console: Console) -> None:
         return
     record = sorted(safe_records, key=lambda item: item.issue.confidence, reverse=True)[0]
     try:
-        result = apply_issue(record.file_path, record.issue)
+        result = apply_issue(record.apply_path or record.file_path, record.issue)
     except PatchError as exc:
         console.print(f"[bold red]Apply failed:[/bold red] {exc}")
         return
@@ -201,6 +279,19 @@ def _exit_code(records: list[IssueRecord], exit_on_critical: bool) -> int:
     if exit_on_critical and any(record.issue.severity == "CRITICAL" for record in records):
         return 1
     return 0
+
+
+def _summary(records: list[IssueRecord], scan: ProjectScan | None) -> dict[str, int]:
+    summary = {
+        "issues": len(records),
+        "critical": sum(1 for record in records if record.issue.severity == "CRITICAL"),
+        "warnings": sum(1 for record in records if record.issue.severity == "WARNING"),
+        "auto_applyable": sum(1 for record in records if can_auto_apply(record.issue)),
+    }
+    if scan is not None:
+        summary["files_scanned"] = scan.files_scanned
+        summary["files_skipped"] = scan.files_skipped
+    return summary
 
 
 if __name__ == "__main__":
