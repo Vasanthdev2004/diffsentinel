@@ -42,6 +42,7 @@ Completed today:
 - Added Agent Guard Mode: `guard`, `fix-plan`, `apply-safe`, and `restore`.
 - Added Agent JSON v2 and reversible safe-apply run metadata.
 - Added `diffsentinel demo-agent` for the full agent safety-layer demo story.
+- Added `diffsentinel agent` for an inspect, plan, apply, verify loop.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.
@@ -70,7 +71,7 @@ diffsentinel demo-agent
 Test result:
 
 ```text
-30 passed
+32 passed
 ```
 
 ## Next Steps

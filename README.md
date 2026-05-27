@@ -42,6 +42,7 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 - Local `git diff` analysis
 - Whole-project Python scanning with `diffsentinel scan`
 - Agent Guard Mode with `diffsentinel guard`
+- Interactive agent loop with `diffsentinel agent`
 - OpenAI Structured Outputs when `OPENAI_API_KEY` is set
 - Offline local rules engine when no API key is available
 - Rich terminal UI with severity colors and safe apply
@@ -154,6 +155,7 @@ diffsentinel check
 diffsentinel init
 diffsentinel doctor
 diffsentinel scan .
+diffsentinel agent --yes
 diffsentinel guard --changed --json --fail-on-critical
 diffsentinel fix-plan --changed
 diffsentinel apply-safe --changed
@@ -215,6 +217,14 @@ For coding-agent workflows, keep this command in your agent instructions:
 ```powershell
 diffsentinel guard --changed --json --fail-on-critical
 ```
+
+For Claude Code/Codex-style interactive usage:
+
+```powershell
+diffsentinel agent
+```
+
+It inspects changed code, prints a fix plan, asks before applying safe fixes, reruns guard, and gives a final recommendation. Use `--yes` for non-interactive demo runs and `--json` for machine-readable output.
 
 ## What It Detects Today
 
