@@ -25,13 +25,13 @@ class IssueTarget:
     excerpt: str
 
 
-def show_review(targets: list[IssueTarget], *, console: Console | None = None) -> int:
+def show_review(targets: list[IssueTarget], *, console: Console | None = None, interactive: bool = True) -> int:
     console = console or Console()
     if not targets:
         console.print("[bold green]DiffSentinel[/bold green] No performance issues found.")
         return 0
 
-    if not sys.stdin.isatty():
+    if not interactive or not sys.stdin.isatty():
         _print_noninteractive(console, targets)
         return len(targets)
 

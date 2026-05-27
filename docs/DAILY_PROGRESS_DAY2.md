@@ -34,8 +34,10 @@ This makes the product easier to evaluate. Judges, teammates, and early users ca
 Completed today:
 
 - Added `diffsentinel demo` command.
+- Added `diffsentinel install-hook` and `diffsentinel uninstall-hook` for pre-commit protection.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
+- Added tests for pre-commit hook install, backup, and restore behavior.
 - Updated README with the fastest demo path.
 - Updated roadmap and Phase 1 progress docs.
 - Verified the command end-to-end locally.
@@ -55,7 +57,7 @@ diffsentinel demo
 Test result:
 
 ```text
-11 passed
+15 passed
 ```
 
 ## Next Steps

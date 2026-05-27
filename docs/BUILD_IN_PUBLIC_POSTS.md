@@ -84,7 +84,8 @@ Current status:
 - local/offline analysis working
 - safe apply working
 - self-contained demo working
-- tests passing: 11
+- pre-commit hook install working
+- tests passing: 15
 - public repo live
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel

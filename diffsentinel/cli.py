@@ -11,6 +11,7 @@ from rich.console import Console
 from .analyzer import analyze_chunk
 from .demo import run_demo
 from .diff import DiffError, get_diff_chunks
+from .hooks import HookError, install_pre_commit_hook, uninstall_pre_commit_hook
 from .patcher import PatchError, apply_issue
 from .rules import can_auto_apply
 from .schema import Issue
@@ -31,6 +32,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_check(args)
     if args.command == "demo":
         return run_demo_command(args)
+    if args.command == "install-hook":
+        return run_install_hook(args)
+    if args.command == "uninstall-hook":
+        return run_uninstall_hook(args)
     parser.print_help()
     return 2
 
@@ -54,6 +59,21 @@ def build_parser() -> argparse.ArgumentParser:
     demo = subparsers.add_parser("demo", help="Run a self-contained DiffSentinel demo")
     demo.add_argument("--path", help="Optional empty directory to use for the demo repo")
     demo.add_argument("--no-apply", action="store_true", help="Show the finding without applying the safe fix")
+
+    install_hook = subparsers.add_parser("install-hook", help="Install a DiffSentinel pre-commit hook")
+    install_hook.add_argument("--force", action="store_true", help="Back up and replace an existing pre-commit hook")
+    install_hook.add_argument(
+        "--live",
+        action="store_true",
+        help="Use live OpenAI analysis when OPENAI_API_KEY is set instead of local-only rules",
+    )
+
+    uninstall_hook = subparsers.add_parser("uninstall-hook", help="Remove a DiffSentinel pre-commit hook")
+    uninstall_hook.add_argument(
+        "--no-restore",
+        action="store_true",
+        help="Do not restore a hook that DiffSentinel backed up during install",
+    )
     return parser
 
 
@@ -96,7 +116,7 @@ def run_check(args: argparse.Namespace) -> int:
         for record in records
     ]
     if args.no_tui:
-        show_review(targets, console=console)
+        show_review(targets, console=console, interactive=False)
         return _exit_code(records, args.exit_on_critical)
 
     show_review(targets, console=console)
@@ -114,6 +134,35 @@ def run_demo_command(args: argparse.Namespace) -> int:
     except Exception as exc:
         console.print(f"[bold red]DiffSentinel demo failed:[/bold red] {exc}")
         return 2
+    return 0
+
+
+def run_install_hook(args: argparse.Namespace) -> int:
+    console = Console()
+    command = "diffsentinel check --staged --exit-on-critical --no-tui"
+    if not args.live:
+        command += " --force-cache"
+    try:
+        result = install_pre_commit_hook(command=command, force=args.force)
+    except HookError as exc:
+        console.print(f"[bold red]Hook install failed:[/bold red] {exc}")
+        return 2
+    console.print(f"[bold green]Installed[/bold green] DiffSentinel pre-commit hook: {result.hook_path}")
+    if result.backup_path is not None:
+        console.print(f"Backed up existing hook: {result.backup_path}")
+    return 0
+
+
+def run_uninstall_hook(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        result = uninstall_pre_commit_hook(restore_backup=not args.no_restore)
+    except HookError as exc:
+        console.print(f"[bold red]Hook uninstall failed:[/bold red] {exc}")
+        return 2
+    console.print(f"[bold green]Removed[/bold green] DiffSentinel pre-commit hook: {result.hook_path}")
+    if result.backup_path is not None and not args.no_restore:
+        console.print(f"Restored previous hook from: {result.backup_path}")
     return 0
 
 

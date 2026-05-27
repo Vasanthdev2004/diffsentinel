@@ -46,6 +46,7 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 - `--json` output for scripts
 - `--apply-first` for deterministic demos
 - `--exit-on-critical` for CI-style checks
+- `install-hook` to block critical staged regressions before commit
 - Backup + atomic file rewrite
 - Focused test suite and GitHub Actions CI
 
@@ -117,7 +118,17 @@ diffsentinel check --no-tui
 diffsentinel check --apply-first
 diffsentinel check --exit-on-critical
 diffsentinel check --staged --exit-on-critical
+diffsentinel install-hook
+diffsentinel uninstall-hook
 ```
+
+The installed pre-commit hook runs:
+
+```powershell
+diffsentinel check --staged --exit-on-critical --no-tui --force-cache
+```
+
+Use `diffsentinel install-hook --live` if you want the hook to use live OpenAI analysis when `OPENAI_API_KEY` is available.
 
 ## What It Detects Today
 
