@@ -28,6 +28,7 @@ from .hooks import HookError, install_pre_commit_hook, uninstall_pre_commit_hook
 from .onboarding import checks_json, initialize_project, print_doctor, print_init_result, run_doctor
 from .patcher import PatchError, apply_issue
 from .rules import can_auto_apply
+from .sarif import sarif_json
 from .scanner import ProjectScan, scan_project
 from .schema import Issue
 from .settings import DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT, VALID_REASONING_EFFORTS, load_settings
@@ -134,6 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
     guard = subparsers.add_parser("guard", help="Agent-facing guardrail for changed code or whole projects")
     _add_agent_scope_args(guard)
     guard.add_argument("--json", action="store_true", help="Print the v2 agent JSON report")
+    guard.add_argument("--sarif", action="store_true", help="Print SARIF 2.1.0 for code scanning")
     guard.add_argument("--apply-safe", action="store_true", help="Apply all high-confidence safe fixes before reporting")
     guard.add_argument("--fail-on-critical", action="store_true", help="Exit 1 when CRITICAL issues are present")
 
@@ -148,6 +150,7 @@ def build_parser() -> argparse.ArgumentParser:
     fix_plan = subparsers.add_parser("fix-plan", help="Show safe fixes and manual-review items")
     _add_agent_scope_args(fix_plan)
     fix_plan.add_argument("--json", action="store_true", help="Print the v2 agent JSON report")
+    fix_plan.add_argument("--sarif", action="store_true", help="Print SARIF 2.1.0 for code scanning")
 
     apply_safe = subparsers.add_parser("apply-safe", help="Apply all high-confidence safe fixes")
     _add_agent_scope_args(apply_safe)
@@ -353,7 +356,9 @@ def run_guard(args: argparse.Namespace) -> int:
         console.print(f"[bold red]DiffSentinel guard failed:[/bold red] {exc}")
         return 2
     report = build_agent_report(finding_set, fail_on_critical=args.fail_on_critical, applied=applied)
-    if args.json:
+    if args.sarif:
+        print(sarif_json(report))
+    elif args.json:
         print(report_json(report))
     else:
         print_fix_plan(report, console)
@@ -397,7 +402,9 @@ def run_fix_plan(args: argparse.Namespace) -> int:
         console.print(f"[bold red]DiffSentinel fix-plan failed:[/bold red] {exc}")
         return 2
     report = build_agent_report(finding_set, fail_on_critical=False)
-    if args.json:
+    if args.sarif:
+        print(sarif_json(report))
+    elif args.json:
         print(report_json(report))
     else:
         print_fix_plan(report, console)

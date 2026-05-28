@@ -47,6 +47,7 @@ def guard_namespace(path: Path, **overrides):
         "project": False,
         "staged": False,
         "json": True,
+        "sarif": False,
         "apply_safe": False,
         "dry_run": False,
         "fail_on_critical": True,
@@ -101,6 +102,18 @@ def test_guard_changed_json_exits_on_critical(tmp_path: Path, monkeypatch, capsy
     assert payload["scope"] == "changed"
     assert payload["blocked_reason"] == "critical_issues_found"
     assert payload["next_action"] == "apply_safe_fixes_then_rerun"
+
+
+def test_guard_changed_sarif_outputs_code_scanning_payload(tmp_path: Path, monkeypatch, capsys):
+    init_changed_repo(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    code = run_guard(guard_namespace(tmp_path, json=False, sarif=True, fail_on_critical=False))
+
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["version"] == "2.1.0"
+    assert payload["runs"][0]["results"][0]["ruleId"] == "BLOCKING_IO"
 
 
 def test_fix_plan_project_prints_safe_fix(tmp_path: Path, capsys):
