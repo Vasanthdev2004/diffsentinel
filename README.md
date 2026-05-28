@@ -97,6 +97,7 @@ Inside the shell:
 /doctor
 /json
 /sarif
+/chat-debug
 /exit
 ```
 
@@ -106,6 +107,12 @@ You can also type natural questions:
 can I commit?
 what is the main risk?
 what should I fix next?
+```
+
+When `OPENAI_API_KEY` is set, plain text is answered through the OpenAI Responses API with the current project/report context. If live chat falls back locally, run:
+
+```text
+/chat-debug
 ```
 
 ## First Run Onboarding

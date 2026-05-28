@@ -54,6 +54,7 @@ class ShellState:
     last_report: dict | None = None
     last_apply: ApplyOutcome | None = None
     messages: list[dict[str, str]] | None = None
+    last_chat_error: str | None = None
 
 
 def run_shell(*, root: str | Path = ".", console: Console | None = None, input_func: Callable[[str], str] | None = None) -> int:
@@ -105,6 +106,8 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
             _print_last_sarif(console, state)
         elif name == "history":
             _print_history(console, state)
+        elif name == "chat-debug":
+            _print_chat_debug(console, state)
         elif name == "clear":
             console.clear()
             _print_welcome(console, state)
@@ -143,6 +146,7 @@ def _print_help(console: Console) -> None:
         ("/json", "Print last agent JSON"),
         ("/sarif", "Print last report as SARIF"),
         ("/history", "Show chat messages from this shell session"),
+        ("/chat-debug", "Show whether live chat fell back locally"),
         ("/clear", "Clear screen"),
         ("/exit", "Exit shell"),
     ]
@@ -164,6 +168,8 @@ def _print_status(console: Console, state: ShellState) -> None:
     table.add_row("git_root", str(git_root) if git_root else "not a git repository")
     table.add_row("config", str(settings.config_path) if settings.config_path else "defaults")
     table.add_row("model", settings.openai_model)
+    table.add_row("chat", "live" if os.getenv("OPENAI_API_KEY") and not state.last_chat_error else "local fallback")
+    table.add_row("chat_error", state.last_chat_error or "none")
     table.add_row("last_report", "yes" if state.last_report else "none")
     table.add_row("last_apply", state.last_apply.run_id if state.last_apply else "none")
     console.print(table)
@@ -258,7 +264,8 @@ def _reply_to_chat(console: Console, state: ShellState, message: str) -> None:
     state.messages = state.messages or []
     state.messages.append({"role": "user", "content": message})
     settings = load_settings(state.root)
-    reply = _openai_shell_reply(state, message, settings.openai_model, settings.reasoning_effort)
+    reply, error = _openai_shell_reply(state, message, settings.openai_model, settings.reasoning_effort)
+    state.last_chat_error = error
     if reply is None:
         reply = _local_shell_reply(state, message)
     state.messages.append({"role": "assistant", "content": reply})
@@ -308,28 +315,53 @@ def _local_shell_reply(state: ShellState, message: str) -> str:
     )
 
 
-def _openai_shell_reply(state: ShellState, message: str, model: str, reasoning_effort: str) -> str | None:
+def _openai_shell_reply(state: ShellState, message: str, model: str, reasoning_effort: str) -> tuple[str | None, str | None]:
     if not os.getenv("OPENAI_API_KEY"):
-        return None
+        return None, None
     try:
         from openai import OpenAI
 
         client = OpenAI(timeout=15)
-        response = client.responses.create(
+        response = _create_chat_response(
+            client,
             model=model,
-            instructions=(
-                "You are DiffSentinel, a concise terminal assistant for performance-risk review. "
-                "Answer using the current report context. Do not claim to edit files directly; "
-                "recommend slash commands like /guard, /plan, /apply --dry-run, /apply, /restore."
-            ),
-            input=_chat_context(state, message),
-            reasoning={"effort": reasoning_effort},
-            verbosity="low",
-            store=False,
+            reasoning_effort=reasoning_effort,
+            context=_chat_context(state, message),
+            with_reasoning=True,
         )
-    except Exception:
-        return None
-    return getattr(response, "output_text", None)
+    except Exception as first_exc:
+        try:
+            from openai import OpenAI
+
+            client = OpenAI(timeout=15)
+            response = _create_chat_response(
+                client,
+                model=model,
+                reasoning_effort=reasoning_effort,
+                context=_chat_context(state, message),
+                with_reasoning=False,
+            )
+        except Exception as second_exc:
+            return None, f"{type(second_exc).__name__}: {second_exc} (first attempt: {type(first_exc).__name__})"
+    return getattr(response, "output_text", None), None
+
+
+def _create_chat_response(client, *, model: str, reasoning_effort: str, context: str, with_reasoning: bool):
+    kwargs = {
+        "model": model,
+        "instructions": (
+            "You are DiffSentinel, a concise terminal assistant for performance-risk review. "
+            "You can answer normal conversation, but stay grounded in the current project context. "
+            "If the user asks you to modify files, recommend slash commands like /guard, /plan, "
+            "/apply --dry-run, /apply, /restore, /scan, /doctor. Do not claim you edited files unless "
+            "the session context says an apply run happened."
+        ),
+        "input": context,
+        "store": False,
+    }
+    if with_reasoning:
+        kwargs["reasoning"] = {"effort": reasoning_effort}
+    return client.responses.create(**kwargs)
 
 
 def _chat_context(state: ShellState, message: str) -> str:
@@ -340,6 +372,18 @@ def _chat_context(state: ShellState, message: str) -> str:
             "last_report": state.last_report,
             "last_apply": state.last_apply.__dict__ if state.last_apply else None,
             "recent_messages": (state.messages or [])[-6:],
+            "available_slash_commands": [
+                "/guard",
+                "/scan",
+                "/plan",
+                "/apply --dry-run",
+                "/apply",
+                "/restore",
+                "/doctor",
+                "/json",
+                "/sarif",
+                "/history",
+            ],
         },
         default=str,
     )
@@ -352,6 +396,16 @@ def _print_history(console: Console, state: ShellState) -> None:
     for item in state.messages or []:
         table.add_row(item["role"], item["content"])
     console.print(table)
+
+
+def _print_chat_debug(console: Console, state: ShellState) -> None:
+    if state.last_chat_error:
+        console.print(Panel(state.last_chat_error, title="Last chat fallback reason", border_style="yellow"))
+        return
+    if os.getenv("OPENAI_API_KEY"):
+        console.print("[green]Live chat is available. No chat error recorded.[/green]")
+    else:
+        console.print("[yellow]OPENAI_API_KEY is not set. Chat is using local fallback replies.[/yellow]")
 
 
 def _resolve_shell_root(start: Path) -> Path:

@@ -45,6 +45,35 @@ def test_shell_greets_without_report(tmp_path: Path, monkeypatch):
     assert "Hey. I am here." in output.getvalue()
 
 
+def test_shell_uses_live_chat_when_available(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr("diffsentinel.shell._openai_shell_reply", lambda *_args: ("live answer", None))
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+    commands = iter(["hi", "/chat-debug", "/exit"])
+
+    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+
+    text = output.getvalue()
+    assert code == 0
+    assert "live answer" in text
+    assert "Live chat is available" in text
+
+
+def test_shell_chat_debug_shows_fallback_reason(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr("diffsentinel.shell._openai_shell_reply", lambda *_args: (None, "boom"))
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+    commands = iter(["hi", "/chat-debug", "/exit"])
+
+    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+
+    text = output.getvalue()
+    assert code == 0
+    assert "boom" in text
+
+
 def test_shell_chat_uses_last_report(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     sample = tmp_path / "handler.py"
