@@ -99,6 +99,7 @@ Current status:
 - autonomous `dfs autopilot` and `dfs review-pr`
 - natural-language chat inside the `dfs` shell
 - GitHub PR review action mode with DiffSentinel watermark
+- project memory via `/analyse`
 - tests passing: 45
 - public repo live
 

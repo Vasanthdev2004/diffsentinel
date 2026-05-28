@@ -51,6 +51,8 @@ class IssueRecord:
 def main(argv: Sequence[str] | None = None) -> int:
     if argv is None and Path(sys.argv[0]).stem.lower() == "dfs" and len(sys.argv) == 1:
         return run_shell()
+    if argv is None and Path(sys.argv[0]).stem.lower() == "dfs" and len(sys.argv) == 2 and Path(sys.argv[1]).exists():
+        return run_shell(root=sys.argv[1])
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "init":

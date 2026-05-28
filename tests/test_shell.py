@@ -42,7 +42,7 @@ def test_shell_greets_without_report(tmp_path: Path, monkeypatch):
     code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
 
     assert code == 0
-    assert "Hey. I am here." in output.getvalue()
+    assert "new place" in output.getvalue()
 
 
 def test_shell_uses_live_chat_when_available(tmp_path: Path, monkeypatch):
@@ -107,6 +107,23 @@ def test_shell_chat_uses_last_report(tmp_path: Path, monkeypatch):
     assert code == 0
     assert "Not yet" in text
     assert "Session history" in text
+
+
+def test_shell_analyse_creates_project_memory(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    (tmp_path / "app.py").write_text("import asyncio\n", encoding="utf-8")
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+    commands = iter(["/analyse", "/status", "hi", "/exit"])
+
+    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+
+    text = output.getvalue()
+    assert code == 0
+    assert "Project memory written" in text
+    assert "project_memory" in text
+    assert "Hey. I am here." in text
+    assert (tmp_path / ".diffsentinel" / "PROJECT_MEMORY.md").exists()
 
 
 def test_shell_auto_selects_single_child_project(tmp_path: Path):

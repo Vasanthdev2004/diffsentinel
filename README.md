@@ -96,6 +96,7 @@ Inside the shell:
 /apply
 /restore
 /doctor
+/analyse
 /json
 /sarif
 /chat-debug
@@ -109,6 +110,14 @@ can I commit?
 what is the main risk?
 what should I fix next?
 ```
+
+For a new project, run:
+
+```text
+/analyse
+```
+
+This writes `.diffsentinel/PROJECT_MEMORY.md` and `.diffsentinel/project_memory.json`, which the shell uses as project context for future replies.
 
 When `OPENAI_API_KEY` is set, plain text is answered through the OpenAI Responses API with the current project/report context. If live chat falls back locally, run:
 

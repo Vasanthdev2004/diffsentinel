@@ -20,6 +20,8 @@ dist/
 *.diffsentinel.*.bak
 .diffsentinel/runs/
 .diffsentinel/reports/
+.diffsentinel/project_memory.json
+.diffsentinel/PROJECT_MEMORY.md
 .DS_Store
 Thumbs.db
 .env

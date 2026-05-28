@@ -48,6 +48,7 @@ Completed today:
 - Added autonomous `dfs autopilot` and `dfs review-pr` markdown reporting.
 - Added natural-language replies inside the `dfs` shell.
 - Added GitHub PR review action mode with review/comment/approve/request-changes behavior.
+- Added `/analyse` project memory so the shell can understand a new project before answering deeply.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.

@@ -26,6 +26,7 @@ from .agent import (
 )
 from .hooks import HookError, find_git_root
 from .github_review import GitHubReviewError, review_pull_request
+from .memory import analyse_project, has_project_memory, load_project_memory
 from .onboarding import print_doctor, run_doctor
 from .sarif import sarif_json
 from .settings import load_settings
@@ -65,12 +66,14 @@ class ShellState:
     last_apply: ApplyOutcome | None = None
     messages: list[dict[str, str]] | None = None
     last_chat_error: str | None = None
+    project_memory: dict | None = None
 
 
 def run_shell(*, root: str | Path = ".", console: Console | None = None, input_func: Callable[[str], str] | None = None) -> int:
     console = console or Console()
     state = ShellState(root=_resolve_shell_root(Path(root).resolve()))
     state.messages = []
+    state.project_memory = load_project_memory(state.root)
     _print_welcome(console, state)
     input_func = input_func or console.input
 
@@ -100,6 +103,8 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
             _print_status(console, state)
         elif name == "doctor":
             print_doctor(run_doctor(state.root), console)
+        elif name == "analyse":
+            _analyse_project(console, state)
         elif name == "guard":
             _run_guard(console, state, project="--project" in args)
         elif name == "scan":
@@ -155,6 +160,7 @@ def _print_help(console: Console) -> None:
         ("/apply --dry-run", "Preview safe fixes without writing"),
         ("/restore", "Restore latest safe-apply run"),
         ("/doctor", "Run setup diagnostics"),
+        ("/analyse", "Build project memory for better chat context"),
         ("/json", "Print last agent JSON"),
         ("/sarif", "Print last report as SARIF"),
         ("/history", "Show chat messages from this shell session"),
@@ -183,6 +189,7 @@ def _print_status(console: Console, state: ShellState) -> None:
     table.add_row("model", settings.openai_model)
     table.add_row("chat", "live" if os.getenv("OPENAI_API_KEY") and not state.last_chat_error else "local fallback")
     table.add_row("chat_error", state.last_chat_error or "none")
+    table.add_row("project_memory", "yes" if state.project_memory else "missing")
     table.add_row("last_report", "yes" if state.last_report else "none")
     table.add_row("last_apply", state.last_apply.run_id if state.last_apply else "none")
     console.print(table)
@@ -301,6 +308,12 @@ def _local_shell_reply(state: ShellState, message: str) -> str:
     lowered = message.lower()
     normalized = lowered.strip(" !?.")
     if normalized in {"hi", "hello", "hey", "gm", "good morning", "yo"}:
+        if not state.project_memory:
+            return (
+                "Hey. I am here, and this looks like a new place for me. "
+                "Run /analyse once so I can build project memory, then I can answer with more context. "
+                "You can still use /guard or /scan right now."
+            )
         return (
             "Hey. I am here. Run /guard to inspect your current diff, /scan for a project audit, "
             "or ask me something like `can I commit?` after a report exists."
@@ -405,6 +418,7 @@ def _chat_context(state: ShellState, message: str) -> str:
             "project": str(state.root),
             "last_report": state.last_report,
             "last_apply": state.last_apply.__dict__ if state.last_apply else None,
+            "project_memory": state.project_memory,
             "recent_messages": (state.messages or [])[-6:],
             "available_slash_commands": [
                 "/guard",
@@ -430,6 +444,22 @@ def _print_history(console: Console, state: ShellState) -> None:
     for item in state.messages or []:
         table.add_row(item["role"], item["content"])
     console.print(table)
+
+
+def _analyse_project(console: Console, state: ShellState) -> None:
+    with console.status("[cyan]building project memory...[/cyan]", spinner="dots"):
+        memory = analyse_project(state.root)
+    state.project_memory = memory.summary
+    console.print(
+        Panel(
+            f"Project memory written.\n"
+            f"Markdown: {memory.markdown_path}\n"
+            f"JSON: {memory.json_path}\n"
+            f"Python files scanned: {memory.summary['files_scanned']}",
+            title="Project analysed",
+            border_style="green",
+        )
+    )
 
 
 def _print_chat_debug(console: Console, state: ShellState) -> None:
