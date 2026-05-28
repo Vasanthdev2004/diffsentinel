@@ -52,6 +52,7 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 - `--exit-on-critical` for CI-style checks
 - `install-hook` to block critical staged regressions before commit
 - `demo-agent` for a full coding-agent guardrail story
+- SARIF output for GitHub code scanning
 - Backup + atomic file rewrite
 - Focused test suite and GitHub Actions CI
 
@@ -157,8 +158,10 @@ diffsentinel doctor
 diffsentinel scan .
 diffsentinel agent --yes
 diffsentinel guard --changed --json --fail-on-critical
+diffsentinel guard --project --sarif --fail-on-critical
 diffsentinel fix-plan --changed
 diffsentinel apply-safe --changed
+diffsentinel apply-safe --changed --dry-run
 diffsentinel restore
 diffsentinel demo-agent
 diffsentinel check --json
@@ -225,6 +228,22 @@ diffsentinel agent
 ```
 
 It inspects changed code, prints a fix plan, asks before applying safe fixes, reruns guard, and gives a final recommendation. Use `--yes` for non-interactive demo runs and `--json` for machine-readable output.
+
+## Safe By Default
+
+- `diffsentinel apply-safe --dry-run` previews changes without writing files.
+- Only high-confidence single-line fixes are auto-applied.
+- Manual-review findings are never mutated.
+- Safe apply writes rollback metadata under `.diffsentinel/runs/`.
+- `diffsentinel restore` restores the latest safe-apply run.
+- `.diffsentinel.toml` supports ignored paths and rule toggles.
+- `--sarif` output works with GitHub code scanning.
+
+Copy the GitHub Actions example from:
+
+```text
+examples/github-action/diffsentinel.yml
+```
 
 ## What It Detects Today
 

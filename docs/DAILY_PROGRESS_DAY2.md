@@ -43,6 +43,7 @@ Completed today:
 - Added Agent JSON v2 and reversible safe-apply run metadata.
 - Added `diffsentinel demo-agent` for the full agent safety-layer demo story.
 - Added `diffsentinel agent` for an inspect, plan, apply, verify loop.
+- Added dry-run previews, SARIF output, config ignores/rule toggles, and GitHub Action example.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.
@@ -71,7 +72,7 @@ diffsentinel demo-agent
 Test result:
 
 ```text
-32 passed
+38 passed
 ```
 
 ## Next Steps

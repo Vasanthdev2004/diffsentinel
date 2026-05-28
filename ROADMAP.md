@@ -28,6 +28,9 @@ DiffSentinel is evolving from a Python performance CLI into an agentic code safe
 
 ## v0.8 - Intelligence Layer
 
+- Dry-run safe apply previews.
+- SARIF output for GitHub code scanning.
+- Configurable ignored paths and rule toggles.
 - AST-backed context extraction for Python and JS/TS.
 - OpenAI live analysis batching with `gpt-5.5`.
 - Per-rule confidence scoring and false-positive suppression.
@@ -36,7 +39,6 @@ DiffSentinel is evolving from a Python performance CLI into an agentic code safe
 ## v0.9 - Workflow Integrations
 
 - GitHub Action.
-- SARIF output for GitHub code scanning.
 - Codex, Claude Code, and Gemini CLI adapter docs.
 - MCP integration plan so agent tools can call DiffSentinel as a guardrail.
 

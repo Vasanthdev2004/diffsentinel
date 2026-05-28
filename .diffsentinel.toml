@@ -15,7 +15,7 @@ default_scope = "changed"
 fail_on_critical = true
 
 [ignore]
-paths = ["samples/**"]
+paths = []
 
 [rules]
 blocking_io = true

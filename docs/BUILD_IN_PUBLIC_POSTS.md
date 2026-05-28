@@ -92,7 +92,10 @@ Current status:
 - reversible safe apply and restore working
 - one-command `demo-agent` story working
 - interactive `diffsentinel agent` loop working
-- tests passing: 32
+- dry-run safe apply previews
+- SARIF output for GitHub code scanning
+- config ignores and rule toggles
+- tests passing: 38
 - public repo live
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel
