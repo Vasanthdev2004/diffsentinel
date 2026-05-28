@@ -481,7 +481,14 @@ def _print_command_table(console: Console, rows: list[tuple[str, str]] | tuple[t
     console.print(table)
 
 
-class SlashCommandCompleter:
+try:
+    from prompt_toolkit.completion import Completer
+except Exception:  # pragma: no cover - import guard for fallback environments
+    class Completer:  # type: ignore[no-redef]
+        pass
+
+
+class SlashCommandCompleter(Completer):
     def get_completions(self, document, complete_event):
         from prompt_toolkit.completion import Completion
 

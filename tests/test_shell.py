@@ -50,6 +50,12 @@ def test_slash_command_completer_filters_prefix():
     assert "/guard" not in texts
 
 
+def test_slash_command_completer_has_async_adapter():
+    completer = SlashCommandCompleter()
+
+    assert hasattr(completer, "get_completions_async")
+
+
 def test_shell_replies_to_plain_text_without_report(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     output = StringIO()
