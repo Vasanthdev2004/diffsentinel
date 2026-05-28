@@ -66,7 +66,7 @@ diffsentinel demo
 Agent demo command:
 
 ```powershell
-diffsentinel demo-agent
+dfs demo-agent
 ```
 
 Test result:

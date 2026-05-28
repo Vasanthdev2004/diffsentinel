@@ -2,6 +2,7 @@
 
 ## Highlights
 
+- Added `dfs` as a short command alias for `diffsentinel`.
 - Added `apply-safe --dry-run`.
 - Added `agent --dry-run`.
 - Added SARIF output with `guard --sarif` and `fix-plan --sarif`.
@@ -16,4 +17,5 @@
 diffsentinel apply-safe --changed --dry-run
 diffsentinel agent --yes --dry-run
 diffsentinel guard --project --sarif --fail-on-critical
+dfs demo-agent
 ```

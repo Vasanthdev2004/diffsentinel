@@ -16,7 +16,7 @@ Proof:
 Core demo command:
 
 ```powershell
-diffsentinel demo-agent
+dfs demo-agent
 ```
 
 ### 2. Clear User Flow / Product Journey

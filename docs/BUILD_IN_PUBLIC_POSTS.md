@@ -132,7 +132,7 @@ Day 3 build update for the #OpenAIHackathon:
 DiffSentinel now has a full agent demo path:
 
 ```powershell
-diffsentinel demo-agent
+dfs demo-agent
 ```
 
 It simulates the story we want judges to understand:

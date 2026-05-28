@@ -23,6 +23,7 @@ dev = [
 
 [project.scripts]
 diffsentinel = "diffsentinel.cli:main"
+dfs = "diffsentinel.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Vasanthdev2004/diffsentinel"

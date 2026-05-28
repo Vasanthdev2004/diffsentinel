@@ -66,6 +66,15 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
+The CLI installs both commands:
+
+```powershell
+diffsentinel --help
+dfs --help
+```
+
+Use `dfs` for faster demos.
+
 ## First Run Onboarding
 
 Initialize a project with DiffSentinel config, safe environment examples, and coding-agent instructions:
@@ -153,6 +162,8 @@ diffsentinel check --force-cache --apply-first
 
 ```powershell
 diffsentinel check
+dfs agent --yes
+dfs demo-agent
 diffsentinel init
 diffsentinel doctor
 diffsentinel scan .
