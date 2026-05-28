@@ -207,6 +207,7 @@ def run_interactive_agent(
     console: Console,
     auto_yes: bool = False,
     quiet: bool = False,
+    dry_run: bool = False,
     fail_on_critical: bool = True,
     rerun: bool = True,
     live: bool = False,
@@ -227,6 +228,13 @@ def run_interactive_agent(
         if not quiet:
             console.print("[bold green]No safe fixes to apply.[/bold green]")
         return InteractiveAgentOutcome(first_report=first_report, final_report=first_report, applied=None)
+
+    if dry_run:
+        applied = apply_safe_fixes(finding_set.findings, root=finding_set.root, dry_run=True)
+        final_report = build_agent_report(finding_set, fail_on_critical=fail_on_critical, applied=applied)
+        if not quiet:
+            console.print(f"[bold cyan]Dry run:[/bold cyan] {len(applied.applied)} safe fixes would be applied.")
+        return InteractiveAgentOutcome(first_report=first_report, final_report=final_report, applied=applied)
 
     if not auto_yes and not _confirm(console, f"Apply {safe_count} safe fixes?"):
         if not quiet:
@@ -262,7 +270,7 @@ def run_interactive_agent(
     return InteractiveAgentOutcome(first_report=first_report, final_report=final_report, applied=applied)
 
 
-def apply_safe_fixes(findings: list[Finding], *, root: str | Path = ".") -> ApplyOutcome:
+def apply_safe_fixes(findings: list[Finding], *, root: str | Path = ".", dry_run: bool = False) -> ApplyOutcome:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     root_path = Path(root).resolve()
     runs_dir = root_path / ".diffsentinel" / "runs"
@@ -285,22 +293,27 @@ def apply_safe_fixes(findings: list[Finding], *, root: str | Path = ".") -> Appl
         grouped.setdefault(target, []).append(finding)
 
     for target, target_findings in grouped.items():
-        try:
-            file_applied = _apply_file_fixes(target, target_findings, run_id)
-        except Exception as exc:
-            skipped.extend({"id": finding.id, "reason": str(exc)} for finding in target_findings)
-            continue
-        applied.extend(file_applied)
+        if dry_run:
+            applied.extend(_preview_file_fixes(target, target_findings))
+        else:
+            try:
+                file_applied = _apply_file_fixes(target, target_findings, run_id)
+            except Exception as exc:
+                skipped.extend({"id": finding.id, "reason": str(exc)} for finding in target_findings)
+                continue
+            applied.extend(file_applied)
 
     metadata = {
         "run_id": run_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "dry_run": dry_run,
         "applied": applied,
         "skipped": skipped,
     }
     metadata_path = runs_dir / f"{run_id}.json"
-    metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    (runs_dir / "latest.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    if not dry_run:
+        metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        (runs_dir / "latest.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return ApplyOutcome(run_id=run_id, metadata_path=metadata_path, applied=applied, skipped=skipped)
 
 
@@ -476,6 +489,30 @@ def _apply_file_fixes(target: Path, findings: list[Finding], run_id: str) -> lis
         }
         for finding in findings
     ]
+
+
+def _preview_file_fixes(target: Path, findings: list[Finding]) -> list[dict[str, Any]]:
+    if not target.exists():
+        raise AgentError(f"File does not exist: {target}")
+    lines = target.read_text(encoding="utf-8").splitlines()
+    preview: list[dict[str, Any]] = []
+    for finding in findings:
+        index = finding.issue.line_number - 1
+        before = lines[index] if 0 <= index < len(lines) else ""
+        preview.append(
+            {
+                "id": finding.id,
+                "file_path": finding.file_path,
+                "absolute_path": str(target),
+                "backup_path": None,
+                "line_number": finding.issue.line_number,
+                "category": finding.issue.category,
+                "before": before,
+                "optimized_code": finding.issue.optimized_code,
+                "dry_run": True,
+            }
+        )
+    return preview
 
 
 def _confirm(console: Console, prompt: str) -> bool:

@@ -48,6 +48,7 @@ def guard_namespace(path: Path, **overrides):
         "staged": False,
         "json": True,
         "apply_safe": False,
+        "dry_run": False,
         "fail_on_critical": True,
         "live": False,
         "model": "gpt-5.5",
@@ -134,3 +135,19 @@ def test_apply_safe_and_restore_round_trip(tmp_path: Path, capsys):
     assert restore_code == 0
     assert restore_payload["restored"][0]["file_path"] == str(sample.resolve())
     assert "time.sleep(1)" in sample.read_text(encoding="utf-8")
+
+
+def test_apply_safe_dry_run_does_not_write_files(tmp_path: Path, capsys):
+    sample = tmp_path / "handler.py"
+    write_bad_async(sample)
+
+    apply_code = run_apply_safe(
+        guard_namespace(tmp_path, changed=False, project=True, json=True, fail_on_critical=False, dry_run=True)
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert apply_code == 0
+    assert payload["applied"][0]["dry_run"] is True
+    assert payload["applied"][0]["before"] == "    time.sleep(1)"
+    assert "time.sleep(1)" in sample.read_text(encoding="utf-8")
+    assert not (tmp_path / ".diffsentinel" / "runs" / "latest.json").exists()

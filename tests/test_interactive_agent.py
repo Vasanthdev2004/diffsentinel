@@ -48,6 +48,7 @@ def agent_namespace(path: Path, **overrides):
         "max_files": None,
         "exclude_tests": None,
         "yes": True,
+        "dry_run": False,
         "json": True,
         "no_rerun": False,
         "fail_on_critical": True,
@@ -79,3 +80,14 @@ def test_agent_without_safe_fixes_returns_clean(tmp_path: Path, capsys):
     payload = json.loads(captured[captured.index("{") :])
     assert code == 0
     assert payload["first_report"]["next_action"] == "continue"
+
+
+def test_agent_dry_run_does_not_write_files(tmp_path: Path, capsys):
+    sample = init_changed_repo(tmp_path)
+
+    code = run_agent(agent_namespace(tmp_path, dry_run=True))
+
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert payload["applied"]["applied"][0]["dry_run"] is True
+    assert "time.sleep(1)" in sample.read_text(encoding="utf-8")

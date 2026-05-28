@@ -140,6 +140,7 @@ def build_parser() -> argparse.ArgumentParser:
     agent = subparsers.add_parser("agent", help="Interactive DiffSentinel coding-agent companion")
     _add_agent_scope_args(agent)
     agent.add_argument("--yes", action="store_true", help="Apply safe fixes without prompting")
+    agent.add_argument("--dry-run", action="store_true", help="Preview safe fixes without writing files")
     agent.add_argument("--json", action="store_true", help="Print the interaction outcome as JSON")
     agent.add_argument("--no-rerun", action="store_true", help="Do not rerun guard after applying safe fixes")
     agent.add_argument("--fail-on-critical", action="store_true", help="Exit 1 if final report still has CRITICAL issues")
@@ -150,6 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     apply_safe = subparsers.add_parser("apply-safe", help="Apply all high-confidence safe fixes")
     _add_agent_scope_args(apply_safe)
+    apply_safe.add_argument("--dry-run", action="store_true", help="Preview safe fixes without writing files")
     apply_safe.add_argument("--json", action="store_true", help="Print apply outcome as JSON")
 
     restore = subparsers.add_parser("restore", help="Restore files from a DiffSentinel safe-apply run")
@@ -370,6 +372,7 @@ def run_agent(args: argparse.Namespace) -> int:
             console=console,
             auto_yes=args.yes,
             quiet=args.json,
+            dry_run=args.dry_run,
             fail_on_critical=args.fail_on_critical,
             rerun=not args.no_rerun,
             live=args.live,
@@ -405,7 +408,7 @@ def run_apply_safe(args: argparse.Namespace) -> int:
     console = Console()
     try:
         finding_set = _collect_agent_findings(args)
-        outcome = apply_safe_fixes(finding_set.findings, root=finding_set.root)
+        outcome = apply_safe_fixes(finding_set.findings, root=finding_set.root, dry_run=args.dry_run)
     except AgentError as exc:
         console.print(f"[bold red]DiffSentinel apply-safe failed:[/bold red] {exc}")
         return 2
@@ -413,7 +416,7 @@ def run_apply_safe(args: argparse.Namespace) -> int:
         print(outcome_json(outcome))
     else:
         console.print(
-            f"[bold green]Applied {len(outcome.applied)} safe fixes[/bold green] "
+            f"[bold green]{'Would apply' if args.dry_run else 'Applied'} {len(outcome.applied)} safe fixes[/bold green] "
             f"(run: {outcome.run_id}, metadata: {outcome.metadata_path})"
         )
         if outcome.skipped:
