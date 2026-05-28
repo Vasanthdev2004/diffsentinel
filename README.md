@@ -100,6 +100,14 @@ Inside the shell:
 /exit
 ```
 
+You can also type natural questions:
+
+```text
+can I commit?
+what is the main risk?
+what should I fix next?
+```
+
 ## First Run Onboarding
 
 Initialize a project with DiffSentinel config, safe environment examples, and coding-agent instructions:

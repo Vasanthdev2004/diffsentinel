@@ -97,10 +97,35 @@ Current status:
 - config ignores and rule toggles
 - interactive `dfs` shell with slash commands
 - autonomous `dfs autopilot` and `dfs review-pr`
-- tests passing: 44
+- natural-language chat inside the `dfs` shell
+- tests passing: 45
 - public repo live
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel
+
+#OpenAIHackathon
+
+## LinkedIn Post 8
+
+DiffSentinel shell now accepts natural language.
+
+You can run:
+
+```powershell
+dfs
+```
+
+Then type:
+
+```text
+can I commit?
+what is the main risk?
+what should I fix next?
+```
+
+It answers using the current session state: last guard report, findings, safe fixes, and apply history. Slash commands still work for actions like `/guard`, `/plan`, `/apply --dry-run`, `/apply`, and `/restore`.
+
+The goal is a focused terminal agent for performance safety, not a generic chatbot.
 
 #OpenAIHackathon
 

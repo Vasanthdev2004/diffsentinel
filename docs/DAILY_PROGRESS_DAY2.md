@@ -46,6 +46,7 @@ Completed today:
 - Added dry-run previews, SARIF output, config ignores/rule toggles, and GitHub Action example.
 - Added interactive `dfs` shell with logo, slash commands, and session memory.
 - Added autonomous `dfs autopilot` and `dfs review-pr` markdown reporting.
+- Added natural-language replies inside the `dfs` shell.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.
@@ -74,7 +75,7 @@ dfs demo-agent
 Test result:
 
 ```text
-44 passed
+45 passed
 ```
 
 ## Next Steps

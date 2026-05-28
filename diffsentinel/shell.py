@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -44,11 +45,13 @@ class ShellState:
     last_finding_set: FindingSet | None = None
     last_report: dict | None = None
     last_apply: ApplyOutcome | None = None
+    messages: list[dict[str, str]] | None = None
 
 
 def run_shell(*, root: str | Path = ".", console: Console | None = None, input_func: Callable[[str], str] | None = None) -> int:
     console = console or Console()
     state = ShellState(root=Path(root).resolve())
+    state.messages = []
     _print_welcome(console, state)
     input_func = input_func or console.input
 
@@ -62,7 +65,7 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
         if not command:
             continue
         if not command.startswith("/"):
-            console.print("[yellow]Use slash commands. Try /help.[/yellow]")
+            _reply_to_chat(console, state, command)
             continue
 
         name, _, rest = command[1:].partition(" ")
@@ -92,6 +95,8 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
             _print_last_json(console, state)
         elif name == "sarif":
             _print_last_sarif(console, state)
+        elif name == "history":
+            _print_history(console, state)
         elif name == "clear":
             console.clear()
             _print_welcome(console, state)
@@ -101,9 +106,13 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
 
 def _print_welcome(console: Console, state: ShellState) -> None:
     console.print(f"[cyan]{LOGO}[/cyan]")
+    settings = load_settings(state.root)
     console.print(
         Panel(
-            f"Safety layer for AI-generated code\nProject: {state.root}\nType /help to see commands.",
+            f"Safety layer for AI-generated code\n"
+            f"Project: {state.root}\n"
+            f"Model: {settings.openai_model}    Mode: {'live' if os.getenv('OPENAI_API_KEY') else 'local fallback'}\n"
+            f"Try: /guard, /scan, /plan, /apply --dry-run, or ask: can I commit?",
             title="DiffSentinel Agent Shell",
             border_style="cyan",
         )
@@ -125,6 +134,7 @@ def _print_help(console: Console) -> None:
         ("/doctor", "Run setup diagnostics"),
         ("/json", "Print last agent JSON"),
         ("/sarif", "Print last report as SARIF"),
+        ("/history", "Show chat messages from this shell session"),
         ("/clear", "Clear screen"),
         ("/exit", "Exit shell"),
     ]
@@ -226,3 +236,95 @@ def _print_last_sarif(console: Console, state: ShellState) -> None:
         console.print("[yellow]No report yet. Run /guard or /scan first.[/yellow]")
         return
     console.print(json.dumps(json.loads(sarif_json(state.last_report)), indent=2))
+
+
+def _reply_to_chat(console: Console, state: ShellState, message: str) -> None:
+    state.messages = state.messages or []
+    state.messages.append({"role": "user", "content": message})
+    settings = load_settings(state.root)
+    reply = _openai_shell_reply(state, message, settings.openai_model, settings.reasoning_effort)
+    if reply is None:
+        reply = _local_shell_reply(state, message)
+    state.messages.append({"role": "assistant", "content": reply})
+    console.print(Panel(reply, title="DiffSentinel", border_style="cyan"))
+
+
+def _local_shell_reply(state: ShellState, message: str) -> str:
+    lowered = message.lower()
+    if state.last_report is None:
+        return (
+            "I do not have a report yet. Run /guard to inspect the current diff, "
+            "or /scan to inspect the whole project."
+        )
+    summary = state.last_report["summary"]
+    if "commit" in lowered:
+        if summary["critical"]:
+            return (
+                f"Not yet. I found {summary['critical']} critical issue(s). "
+                "Run /plan to review them, then /apply or /apply --dry-run."
+            )
+        return "Yes, from a DiffSentinel performance-risk view, you can continue or commit."
+    if "apply" in lowered or "fix" in lowered:
+        if summary["safe_fixes"]:
+            return f"I found {summary['safe_fixes']} safe fix(es). Run /apply --dry-run first, then /apply."
+        return "I do not see any safe fixes in the last report."
+    if "what" in lowered or "wrong" in lowered or "risk" in lowered:
+        if summary["issues"] == 0:
+            return "The last report is clean. I did not find performance issues."
+        first_issue = state.last_report["issues"][0]
+        return (
+            f"The main risk is {first_issue['category']} in "
+            f"{first_issue['file_path']}:{first_issue['line_number']}. "
+            f"{first_issue['explanation']} Impact: {first_issue['impact']}"
+        )
+    return (
+        f"Last report: {summary['issues']} issue(s), {summary['critical']} critical, "
+        f"{summary['safe_fixes']} safe fix(es), {summary['manual_review']} manual review. "
+        "Use /plan, /apply --dry-run, /apply, or /restore."
+    )
+
+
+def _openai_shell_reply(state: ShellState, message: str, model: str, reasoning_effort: str) -> str | None:
+    if not os.getenv("OPENAI_API_KEY"):
+        return None
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(timeout=15)
+        response = client.responses.create(
+            model=model,
+            instructions=(
+                "You are DiffSentinel, a concise terminal assistant for performance-risk review. "
+                "Answer using the current report context. Do not claim to edit files directly; "
+                "recommend slash commands like /guard, /plan, /apply --dry-run, /apply, /restore."
+            ),
+            input=_chat_context(state, message),
+            reasoning={"effort": reasoning_effort},
+            verbosity="low",
+            store=False,
+        )
+    except Exception:
+        return None
+    return getattr(response, "output_text", None)
+
+
+def _chat_context(state: ShellState, message: str) -> str:
+    return json.dumps(
+        {
+            "user_message": message,
+            "project": str(state.root),
+            "last_report": state.last_report,
+            "last_apply": state.last_apply.__dict__ if state.last_apply else None,
+            "recent_messages": (state.messages or [])[-6:],
+        },
+        default=str,
+    )
+
+
+def _print_history(console: Console, state: ShellState) -> None:
+    table = Table(title="Session history", box=box.SIMPLE_HEAVY)
+    table.add_column("Role")
+    table.add_column("Message")
+    for item in state.messages or []:
+        table.add_row(item["role"], item["content"])
+    console.print(table)
