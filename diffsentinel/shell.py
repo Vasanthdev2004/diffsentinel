@@ -511,21 +511,36 @@ def _prompt_input(console: Console) -> Callable[[str], str]:
     try:
         from prompt_toolkit import PromptSession
         from prompt_toolkit.history import InMemoryHistory
+        from prompt_toolkit.styles import Style
     except Exception:
         return console.input
 
     if not console.is_terminal:
         return console.input
 
+    style = Style.from_dict(
+        {
+            "prompt": "ansicyan bold",
+            "completion-menu": "bg:#0d1117 #f0f6fc",
+            "completion-menu.completion": "bg:#0d1117 #f0f6fc",
+            "completion-menu.completion.current": "bg:#1f6feb #ffffff bold",
+            "completion-menu.meta": "bg:#0d1117 #8b949e",
+            "completion-menu.meta.current": "bg:#1f6feb #ffffff",
+            "scrollbar.background": "bg:#0d1117",
+            "scrollbar.button": "bg:#39c5cf",
+        }
+    )
     session = PromptSession(
         completer=SlashCommandCompleter(),
         complete_while_typing=True,
         history=InMemoryHistory(),
+        style=style,
+        reserve_space_for_menu=8,
     )
 
     def read(prompt: str) -> str:
         return session.prompt(
-            "dfs > ",
+            [("class:prompt", "dfs > ")],
             complete_while_typing=True,
         )
 

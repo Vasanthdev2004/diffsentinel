@@ -56,6 +56,14 @@ def test_slash_command_completer_has_async_adapter():
     assert hasattr(completer, "get_completions_async")
 
 
+def test_prompt_input_falls_back_for_non_terminal():
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+    reader = __import__("diffsentinel.shell", fromlist=["_prompt_input"])._prompt_input(console)
+
+    assert reader == console.input
+
+
 def test_shell_replies_to_plain_text_without_report(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     output = StringIO()
