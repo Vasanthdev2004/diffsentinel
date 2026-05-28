@@ -267,6 +267,14 @@ def _reply_to_chat(console: Console, state: ShellState, message: str) -> None:
 
 def _local_shell_reply(state: ShellState, message: str) -> str:
     lowered = message.lower()
+    normalized = lowered.strip(" !?.")
+    if normalized in {"hi", "hello", "hey", "gm", "good morning", "yo"}:
+        return (
+            "Hey. I am here. Run /guard to inspect your current diff, /scan for a project audit, "
+            "or ask me something like `can I commit?` after a report exists."
+        )
+    if "help" in lowered and state.last_report is None:
+        return "I can help with /guard, /scan, /plan, /apply --dry-run, /apply, /restore, /doctor, /json, and /sarif."
     if state.last_report is None:
         return (
             "I do not have a report yet. Run /guard to inspect the current diff, "

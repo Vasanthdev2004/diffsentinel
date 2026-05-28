@@ -33,6 +33,18 @@ def test_shell_replies_to_plain_text_without_report(tmp_path: Path, monkeypatch)
     assert "I do not have a report yet" in output.getvalue()
 
 
+def test_shell_greets_without_report(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+    commands = iter(["hi", "/exit"])
+
+    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+
+    assert code == 0
+    assert "Hey. I am here." in output.getvalue()
+
+
 def test_shell_chat_uses_last_report(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     sample = tmp_path / "handler.py"
