@@ -95,8 +95,35 @@ Current status:
 - dry-run safe apply previews
 - SARIF output for GitHub code scanning
 - config ignores and rule toggles
-- tests passing: 38
+- interactive `dfs` shell with slash commands
+- tests passing: 41
 - public repo live
+
+Repo: https://github.com/Vasanthdev2004/diffsentinel
+
+#OpenAIHackathon
+
+## LinkedIn Post 6
+
+DiffSentinel now has the shell experience I wanted:
+
+```powershell
+dfs
+```
+
+It opens an interactive terminal agent shell with slash commands:
+
+- `/guard`
+- `/scan`
+- `/plan`
+- `/apply --dry-run`
+- `/apply`
+- `/restore`
+- `/doctor`
+- `/json`
+- `/sarif`
+
+This makes DiffSentinel feel less like a one-off CLI and more like a focused coding-agent companion: inspect changed code, plan fixes, apply safely, rerun, restore if needed.
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel
 

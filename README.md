@@ -43,6 +43,7 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 - Whole-project Python scanning with `diffsentinel scan`
 - Agent Guard Mode with `diffsentinel guard`
 - Interactive agent loop with `diffsentinel agent`
+- Interactive `dfs` shell with slash commands
 - OpenAI Structured Outputs when `OPENAI_API_KEY` is set
 - Offline local rules engine when no API key is available
 - Rich terminal UI with severity colors and safe apply
@@ -74,6 +75,29 @@ dfs --help
 ```
 
 Use `dfs` for faster demos.
+
+Run `dfs` with no subcommand to open the interactive shell:
+
+```powershell
+dfs
+```
+
+Inside the shell:
+
+```text
+/help
+/status
+/guard
+/scan
+/plan
+/apply --dry-run
+/apply
+/restore
+/doctor
+/json
+/sarif
+/exit
+```
 
 ## First Run Onboarding
 
@@ -162,6 +186,7 @@ diffsentinel check --force-cache --apply-first
 
 ```powershell
 diffsentinel check
+dfs
 dfs agent --yes
 dfs demo-agent
 diffsentinel init

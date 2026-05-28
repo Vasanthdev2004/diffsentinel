@@ -44,6 +44,7 @@ Completed today:
 - Added `diffsentinel demo-agent` for the full agent safety-layer demo story.
 - Added `diffsentinel agent` for an inspect, plan, apply, verify loop.
 - Added dry-run previews, SARIF output, config ignores/rule toggles, and GitHub Action example.
+- Added interactive `dfs` shell with logo, slash commands, and session memory.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.
@@ -72,7 +73,7 @@ dfs demo-agent
 Test result:
 
 ```text
-38 passed
+41 passed
 ```
 
 ## Next Steps

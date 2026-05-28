@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -32,6 +33,7 @@ from .sarif import sarif_json
 from .scanner import ProjectScan, scan_project
 from .schema import Issue
 from .settings import DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT, VALID_REASONING_EFFORTS, load_settings
+from .shell import run_shell
 from .tui import IssueTarget, show_review
 
 
@@ -44,6 +46,8 @@ class IssueRecord:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    if argv is None and Path(sys.argv[0]).stem.lower() == "dfs" and len(sys.argv) == 1:
+        return run_shell()
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "init":
