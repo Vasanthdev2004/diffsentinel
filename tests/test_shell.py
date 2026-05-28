@@ -4,7 +4,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from diffsentinel.shell import ASCII_LOGO, UNICODE_LOGO, _logo_for_console, run_shell
+from diffsentinel.shell import ASCII_LOGO, THINKING_PHRASES, UNICODE_LOGO, _advance_status, _logo_for_console, run_shell
 
 
 def test_shell_help_and_exit(tmp_path: Path):
@@ -72,6 +72,18 @@ def test_shell_chat_debug_shows_fallback_reason(tmp_path: Path, monkeypatch):
     text = output.getvalue()
     assert code == 0
     assert "boom" in text
+
+
+def test_thinking_status_advances_phrase():
+    calls = []
+
+    class FakeStatus:
+        def update(self, text):
+            calls.append(text)
+
+    _advance_status(FakeStatus(), 1)
+
+    assert THINKING_PHRASES[1] in calls[0]
 
 
 def test_shell_chat_uses_last_report(tmp_path: Path, monkeypatch):

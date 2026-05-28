@@ -9,6 +9,7 @@ from typing import Callable
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
+from rich.status import Status
 from rich.table import Table
 
 from .agent import (
@@ -45,6 +46,14 @@ ASCII_LOGO = r"""
 | |_| | |  _|    ___) |
 |____/  |_|     |____/
 """
+
+THINKING_PHRASES = (
+    "sentinelmaxxing",
+    "reading the diff",
+    "checking event-loop risk",
+    "separating safe fixes",
+    "thinking in rollback mode",
+)
 
 
 @dataclass
@@ -264,7 +273,17 @@ def _reply_to_chat(console: Console, state: ShellState, message: str) -> None:
     state.messages = state.messages or []
     state.messages.append({"role": "user", "content": message})
     settings = load_settings(state.root)
-    reply, error = _openai_shell_reply(state, message, settings.openai_model, settings.reasoning_effort)
+    if os.getenv("OPENAI_API_KEY") and console.is_terminal:
+        with console.status(f"[cyan]{THINKING_PHRASES[0]}...[/cyan]", spinner="dots") as status:
+            reply, error = _openai_shell_reply(
+                state,
+                message,
+                settings.openai_model,
+                settings.reasoning_effort,
+                status=status,
+            )
+    else:
+        reply, error = _openai_shell_reply(state, message, settings.openai_model, settings.reasoning_effort)
     state.last_chat_error = error
     if reply is None:
         reply = _local_shell_reply(state, message)
@@ -315,13 +334,20 @@ def _local_shell_reply(state: ShellState, message: str) -> str:
     )
 
 
-def _openai_shell_reply(state: ShellState, message: str, model: str, reasoning_effort: str) -> tuple[str | None, str | None]:
+def _openai_shell_reply(
+    state: ShellState,
+    message: str,
+    model: str,
+    reasoning_effort: str,
+    status: Status | None = None,
+) -> tuple[str | None, str | None]:
     if not os.getenv("OPENAI_API_KEY"):
         return None, None
     try:
         from openai import OpenAI
 
         client = OpenAI(timeout=15)
+        _advance_status(status, 1)
         response = _create_chat_response(
             client,
             model=model,
@@ -334,6 +360,7 @@ def _openai_shell_reply(state: ShellState, message: str, model: str, reasoning_e
             from openai import OpenAI
 
             client = OpenAI(timeout=15)
+            _advance_status(status, 2)
             response = _create_chat_response(
                 client,
                 model=model,
@@ -343,6 +370,7 @@ def _openai_shell_reply(state: ShellState, message: str, model: str, reasoning_e
             )
         except Exception as second_exc:
             return None, f"{type(second_exc).__name__}: {second_exc} (first attempt: {type(first_exc).__name__})"
+    _advance_status(status, 3)
     return getattr(response, "output_text", None), None
 
 
@@ -406,6 +434,13 @@ def _print_chat_debug(console: Console, state: ShellState) -> None:
         console.print("[green]Live chat is available. No chat error recorded.[/green]")
     else:
         console.print("[yellow]OPENAI_API_KEY is not set. Chat is using local fallback replies.[/yellow]")
+
+
+def _advance_status(status: Status | None, index: int) -> None:
+    if status is None:
+        return
+    phrase = THINKING_PHRASES[index % len(THINKING_PHRASES)]
+    status.update(f"[cyan]{phrase}...[/cyan]")
 
 
 def _resolve_shell_root(start: Path) -> Path:
