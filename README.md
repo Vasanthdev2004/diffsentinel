@@ -44,6 +44,7 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 - Agent Guard Mode with `diffsentinel guard`
 - Interactive agent loop with `diffsentinel agent`
 - Interactive `dfs` shell with slash commands
+- Autopilot and PR review report commands
 - OpenAI Structured Outputs when `OPENAI_API_KEY` is set
 - Offline local rules engine when no API key is available
 - Rich terminal UI with severity colors and safe apply
@@ -189,6 +190,8 @@ diffsentinel check
 dfs
 dfs agent --yes
 dfs demo-agent
+dfs autopilot --apply-safe --markdown
+dfs review-pr --markdown
 diffsentinel init
 diffsentinel doctor
 diffsentinel scan .
@@ -264,6 +267,15 @@ diffsentinel agent
 ```
 
 It inspects changed code, prints a fix plan, asks before applying safe fixes, reruns guard, and gives a final recommendation. Use `--yes` for non-interactive demo runs and `--json` for machine-readable output.
+
+For autonomous PR-style review:
+
+```powershell
+dfs autopilot --apply-safe --markdown
+dfs review-pr --markdown
+```
+
+These commands inspect changed code, optionally apply safe fixes, rerun guard, and write a markdown report under `.diffsentinel/reports/`.
 
 ## Safe By Default
 

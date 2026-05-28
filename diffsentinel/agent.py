@@ -68,6 +68,14 @@ class InteractiveAgentOutcome:
     applied: ApplyOutcome | None
 
 
+@dataclass(frozen=True)
+class AutopilotOutcome:
+    first_report: dict[str, Any]
+    final_report: dict[str, Any]
+    applied: ApplyOutcome | None
+    markdown_path: Path | None
+
+
 class AgentError(RuntimeError):
     """Raised when an agent-facing operation cannot complete."""
 
@@ -270,6 +278,46 @@ def run_interactive_agent(
     return InteractiveAgentOutcome(first_report=first_report, final_report=final_report, applied=applied)
 
 
+def run_autopilot(
+    finding_set: FindingSet,
+    *,
+    apply_safe: bool,
+    dry_run: bool,
+    fail_on_critical: bool,
+    markdown: bool,
+    live: bool,
+    model: str,
+    timeout: float,
+    reasoning_effort: str,
+    enabled_rules: dict[str, bool] | None = None,
+) -> AutopilotOutcome:
+    first_report = build_agent_report(finding_set, fail_on_critical=fail_on_critical)
+    applied = apply_safe_fixes(finding_set.findings, root=finding_set.root, dry_run=dry_run) if apply_safe else None
+    final_set = finding_set
+    if apply_safe and not dry_run:
+        final_set = _rerun_finding_set(
+            finding_set,
+            live=live,
+            model=model,
+            timeout=timeout,
+            reasoning_effort=reasoning_effort,
+            enabled_rules=enabled_rules,
+        )
+    final_report = build_agent_report(final_set, fail_on_critical=fail_on_critical, applied=applied)
+    markdown_path = write_markdown_report(
+        finding_set.root,
+        first_report=first_report,
+        final_report=final_report,
+        applied=applied,
+    ) if markdown else None
+    return AutopilotOutcome(
+        first_report=first_report,
+        final_report=final_report,
+        applied=applied,
+        markdown_path=markdown_path,
+    )
+
+
 def apply_safe_fixes(findings: list[Finding], *, root: str | Path = ".", dry_run: bool = False) -> ApplyOutcome:
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     root_path = Path(root).resolve()
@@ -359,6 +407,36 @@ def interactive_outcome_json(outcome: InteractiveAgentOutcome) -> str:
         },
         indent=2,
     )
+
+
+def autopilot_outcome_json(outcome: AutopilotOutcome) -> str:
+    return json.dumps(
+        {
+            "first_report": outcome.first_report,
+            "final_report": outcome.final_report,
+            "applied": _apply_outcome_dict(outcome.applied) if outcome.applied else None,
+            "markdown_path": str(outcome.markdown_path) if outcome.markdown_path else None,
+        },
+        indent=2,
+    )
+
+
+def write_markdown_report(
+    root: str | Path,
+    *,
+    first_report: dict[str, Any],
+    final_report: dict[str, Any],
+    applied: ApplyOutcome | None,
+) -> Path:
+    root_path = Path(root).resolve()
+    reports_dir = root_path / ".diffsentinel" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    report_path = reports_dir / f"{report_id}.md"
+    text = _markdown_report(first_report=first_report, final_report=final_report, applied=applied)
+    report_path.write_text(text, encoding="utf-8", newline="\n")
+    (reports_dir / "latest.md").write_text(text, encoding="utf-8", newline="\n")
+    return report_path
 
 
 def _from_scan(scan: ProjectScan, findings: list[Finding]) -> FindingSet:
@@ -513,6 +591,52 @@ def _preview_file_fixes(target: Path, findings: list[Finding]) -> list[dict[str,
             }
         )
     return preview
+
+
+def _markdown_report(*, first_report: dict[str, Any], final_report: dict[str, Any], applied: ApplyOutcome | None) -> str:
+    first = first_report["summary"]
+    final = final_report["summary"]
+    lines = [
+        "# DiffSentinel PR Review",
+        "",
+        "## Summary",
+        "",
+        f"- Initial issues: {first['issues']}",
+        f"- Initial critical: {first['critical']}",
+        f"- Initial safe fixes: {first['safe_fixes']}",
+        f"- Final issues: {final['issues']}",
+        f"- Final critical: {final['critical']}",
+        f"- Next action: `{final_report['next_action']}`",
+        "",
+    ]
+    if applied is not None:
+        lines.extend(
+            [
+                "## Safe Apply",
+                "",
+                f"- Run id: `{applied.run_id}`",
+                f"- Applied: {len(applied.applied)}",
+                f"- Skipped: {len(applied.skipped)}",
+                "",
+            ]
+        )
+    lines.extend(["## Findings", ""])
+    if not first_report["issues"]:
+        lines.append("No performance issues found.")
+    for issue in first_report["issues"]:
+        lines.extend(
+            [
+                f"### {issue['severity']} {issue['category']} at `{issue['file_path']}:{issue['line_number']}`",
+                "",
+                issue["explanation"],
+                "",
+                f"Impact: {issue['impact']}",
+                "",
+                f"Safe fix: `{issue['optimized_code']}`" if issue["auto_applyable"] else "Manual review required.",
+                "",
+            ]
+        )
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _confirm(console: Console, prompt: str) -> bool:

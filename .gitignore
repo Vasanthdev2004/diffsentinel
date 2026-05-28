@@ -19,6 +19,7 @@ dist/
 *.diffsentinel.bak
 *.diffsentinel.*.bak
 .diffsentinel/runs/
+.diffsentinel/reports/
 .DS_Store
 Thumbs.db
 .env

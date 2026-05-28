@@ -96,8 +96,32 @@ Current status:
 - SARIF output for GitHub code scanning
 - config ignores and rule toggles
 - interactive `dfs` shell with slash commands
-- tests passing: 41
+- autonomous `dfs autopilot` and `dfs review-pr`
+- tests passing: 44
 - public repo live
+
+Repo: https://github.com/Vasanthdev2004/diffsentinel
+
+#OpenAIHackathon
+
+## LinkedIn Post 7
+
+DiffSentinel now has autonomous PR-review style behavior:
+
+```powershell
+dfs autopilot --apply-safe --markdown
+dfs review-pr --markdown
+```
+
+Autopilot runs:
+
+1. inspect changed code
+2. build a fix plan
+3. optionally apply safe fixes
+4. rerun guard
+5. write a markdown review report
+
+This is the product direction: a performance-review agent for AI-generated code changes.
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel
 

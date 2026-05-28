@@ -44,6 +44,8 @@ DiffSentinel is evolving from a Python performance CLI into an agentic code safe
 
 ## v1.0 - Launch-Grade Product
 
+- `dfs autopilot` for autonomous inspect-plan-apply-verify-report workflows.
+- `dfs review-pr` for PR-ready markdown reports.
 - `pipx install diffsentinel` packaging path.
 - Demo GIFs and polished docs.
 - Benchmark suite with known performance regressions.

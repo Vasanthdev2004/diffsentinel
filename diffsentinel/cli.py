@@ -12,6 +12,7 @@ from rich.console import Console
 from .agent import (
     AgentError,
     apply_safe_fixes,
+    autopilot_outcome_json,
     build_agent_report,
     collect_changed_findings,
     collect_project_findings,
@@ -20,6 +21,7 @@ from .agent import (
     print_fix_plan,
     report_json,
     restore_run,
+    run_autopilot,
     run_interactive_agent,
 )
 from .analyzer import analyze_chunk
@@ -62,6 +64,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_guard(args)
     if args.command == "agent":
         return run_agent(args)
+    if args.command == "autopilot":
+        return run_autopilot_command(args)
+    if args.command == "review-pr":
+        return run_review_pr(args)
     if args.command == "fix-plan":
         return run_fix_plan(args)
     if args.command == "apply-safe":
@@ -150,6 +156,22 @@ def build_parser() -> argparse.ArgumentParser:
     agent.add_argument("--json", action="store_true", help="Print the interaction outcome as JSON")
     agent.add_argument("--no-rerun", action="store_true", help="Do not rerun guard after applying safe fixes")
     agent.add_argument("--fail-on-critical", action="store_true", help="Exit 1 if final report still has CRITICAL issues")
+
+    autopilot = subparsers.add_parser("autopilot", help="Autonomous inspect-plan-apply-verify workflow")
+    _add_agent_scope_args(autopilot)
+    autopilot.add_argument("--apply-safe", action="store_true", help="Apply safe fixes before rerunning guard")
+    autopilot.add_argument("--dry-run", action="store_true", help="Preview safe fixes without writing files")
+    autopilot.add_argument("--markdown", action="store_true", help="Write a markdown report under .diffsentinel/reports")
+    autopilot.add_argument("--json", action="store_true", help="Print autopilot outcome as JSON")
+    autopilot.add_argument("--sarif", action="store_true", help="Print SARIF from the final report")
+    autopilot.add_argument("--fail-on-critical", action="store_true", help="Exit 1 if final report has CRITICAL issues")
+
+    review_pr = subparsers.add_parser("review-pr", help="Generate a PR-ready DiffSentinel review report")
+    _add_agent_scope_args(review_pr)
+    review_pr.add_argument("--apply-safe", action="store_true", help="Apply safe fixes before writing the report")
+    review_pr.add_argument("--dry-run", action="store_true", help="Preview safe fixes without writing files")
+    review_pr.add_argument("--json", action="store_true", help="Print review outcome as JSON")
+    review_pr.add_argument("--fail-on-critical", action="store_true", help="Exit 1 if final report has CRITICAL issues")
 
     fix_plan = subparsers.add_parser("fix-plan", help="Show safe fixes and manual-review items")
     _add_agent_scope_args(fix_plan)
@@ -396,6 +418,45 @@ def run_agent(args: argparse.Namespace) -> int:
     if args.json:
         print(interactive_outcome_json(outcome))
     return int(outcome.final_report["exit_policy"]["exit_code"])
+
+
+def run_autopilot_command(args: argparse.Namespace) -> int:
+    console = Console()
+    try:
+        finding_set = _collect_agent_findings(args)
+        settings = load_settings(args.path)
+        model = args.model or settings.openai_model
+        reasoning_effort = args.reasoning_effort or settings.reasoning_effort
+        outcome = run_autopilot(
+            finding_set,
+            apply_safe=args.apply_safe,
+            dry_run=args.dry_run,
+            fail_on_critical=args.fail_on_critical,
+            markdown=args.markdown,
+            live=args.live,
+            model=model,
+            timeout=args.timeout,
+            reasoning_effort=reasoning_effort,
+            enabled_rules=settings.rules,
+        )
+    except AgentError as exc:
+        console.print(f"[bold red]DiffSentinel autopilot failed:[/bold red] {exc}")
+        return 2
+    if args.sarif:
+        print(sarif_json(outcome.final_report))
+    elif args.json:
+        print(autopilot_outcome_json(outcome))
+    else:
+        print_fix_plan(outcome.final_report, console)
+        if outcome.markdown_path:
+            console.print(f"[green]Wrote report:[/green] {outcome.markdown_path}")
+    return int(outcome.final_report["exit_policy"]["exit_code"])
+
+
+def run_review_pr(args: argparse.Namespace) -> int:
+    args.markdown = True
+    args.sarif = False
+    return run_autopilot_command(args)
 
 
 def run_fix_plan(args: argparse.Namespace) -> int:
