@@ -53,3 +53,17 @@ def test_shell_chat_uses_last_report(tmp_path: Path, monkeypatch):
     assert code == 0
     assert "Not yet" in text
     assert "Session history" in text
+
+
+def test_shell_auto_selects_single_child_project(tmp_path: Path):
+    project = tmp_path / "diffsentinel"
+    project.mkdir()
+    (project / "pyproject.toml").write_text("[project]\nname='demo'\n", encoding="utf-8")
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+    commands = iter(["/status", "/exit"])
+
+    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+
+    assert code == 0
+    assert str(project.resolve()) in output.getvalue()

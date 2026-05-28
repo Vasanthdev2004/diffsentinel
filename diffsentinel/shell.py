@@ -30,12 +30,11 @@ from .settings import load_settings
 
 
 LOGO = r"""
-██████╗ ███████╗███████╗
-██╔══██╗██╔════╝██╔════╝
-██║  ██║█████╗  ███████╗
-██║  ██║██╔══╝  ╚════██║
-██████╔╝██║     ███████║
-╚═════╝ ╚═╝     ╚══════╝
+ ____    _____   ____
+|  _ \  |  ___| / ___|
+| | | | | |_    \___ \
+| |_| | |  _|    ___) |
+|____/  |_|     |____/
 """
 
 
@@ -50,7 +49,7 @@ class ShellState:
 
 def run_shell(*, root: str | Path = ".", console: Console | None = None, input_func: Callable[[str], str] | None = None) -> int:
     console = console or Console()
-    state = ShellState(root=Path(root).resolve())
+    state = ShellState(root=_resolve_shell_root(Path(root).resolve()))
     state.messages = []
     _print_welcome(console, state)
     input_func = input_func or console.input
@@ -186,7 +185,15 @@ def _run_guard(console: Console, state: ShellState, *, project: bool) -> None:
                 enabled_rules=settings.rules,
             )
     except AgentError as exc:
-        console.print(f"[red]Guard failed:[/red] {exc}")
+        console.print(
+            Panel(
+                f"{exc}\n\n"
+                "Run /scan for a whole-project audit, or start dfs inside a git repository "
+                "to use /guard on changed files.",
+                title="Guard unavailable",
+                border_style="yellow",
+            )
+        )
         return
 
     report = build_agent_report(finding_set, fail_on_critical=True)
@@ -328,3 +335,23 @@ def _print_history(console: Console, state: ShellState) -> None:
     for item in state.messages or []:
         table.add_row(item["role"], item["content"])
     console.print(table)
+
+
+def _resolve_shell_root(start: Path) -> Path:
+    try:
+        return find_git_root(start)
+    except HookError:
+        pass
+    if _looks_like_project(start):
+        return start
+    candidates = [child for child in start.iterdir() if child.is_dir() and _looks_like_project(child)]
+    if len(candidates) == 1:
+        return candidates[0].resolve()
+    preferred = [candidate for candidate in candidates if candidate.name.lower() == "diffsentinel"]
+    if preferred:
+        return preferred[0].resolve()
+    return start
+
+
+def _looks_like_project(path: Path) -> bool:
+    return any((path / marker).exists() for marker in (".git", ".diffsentinel.toml", "pyproject.toml"))
