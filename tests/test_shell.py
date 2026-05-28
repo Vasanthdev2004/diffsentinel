@@ -1,9 +1,10 @@
 from io import StringIO
+from types import SimpleNamespace
 from pathlib import Path
 
 from rich.console import Console
 
-from diffsentinel.shell import run_shell
+from diffsentinel.shell import ASCII_LOGO, UNICODE_LOGO, _logo_for_console, run_shell
 
 
 def test_shell_help_and_exit(tmp_path: Path):
@@ -67,3 +68,16 @@ def test_shell_auto_selects_single_child_project(tmp_path: Path):
 
     assert code == 0
     assert str(project.resolve()) in output.getvalue()
+
+
+def test_shell_logo_uses_ascii_for_captured_output():
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+
+    assert _logo_for_console(console) == ASCII_LOGO
+
+
+def test_shell_logo_uses_unicode_for_utf8_terminal():
+    console = SimpleNamespace(is_terminal=True, encoding="utf-8")
+
+    assert _logo_for_console(console) == UNICODE_LOGO

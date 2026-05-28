@@ -29,7 +29,16 @@ from .sarif import sarif_json
 from .settings import load_settings
 
 
-LOGO = r"""
+UNICODE_LOGO = r"""
+██████╗ ███████╗███████╗
+██╔══██╗██╔════╝██╔════╝
+██║  ██║█████╗  ███████╗
+██║  ██║██╔══╝  ╚════██║
+██████╔╝██║     ███████║
+╚═════╝ ╚═╝     ╚══════╝
+"""
+
+ASCII_LOGO = r"""
  ____    _____   ____
 |  _ \  |  ___| / ___|
 | | | | | |_    \___ \
@@ -104,7 +113,7 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
 
 
 def _print_welcome(console: Console, state: ShellState) -> None:
-    console.print(f"[cyan]{LOGO}[/cyan]")
+    console.print(f"[cyan]{_logo_for_console(console)}[/cyan]")
     settings = load_settings(state.root)
     console.print(
         Panel(
@@ -355,3 +364,9 @@ def _resolve_shell_root(start: Path) -> Path:
 
 def _looks_like_project(path: Path) -> bool:
     return any((path / marker).exists() for marker in (".git", ".diffsentinel.toml", "pyproject.toml"))
+
+
+def _logo_for_console(console: Console) -> str:
+    if console.is_terminal and console.encoding and console.encoding.lower().replace("-", "") == "utf8":
+        return UNICODE_LOGO
+    return ASCII_LOGO
