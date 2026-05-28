@@ -57,6 +57,26 @@ THINKING_PHRASES = (
     "thinking in rollback mode",
 )
 
+COMMANDS: tuple[tuple[str, str], ...] = (
+    ("/help", "Show slash commands"),
+    ("/status", "Show project, git, config, and last report state"),
+    ("/analyse", "Build project memory for better chat context"),
+    ("/guard", "Audit current git diff"),
+    ("/scan", "Audit whole project"),
+    ("/plan", "Show fix plan from last report"),
+    ("/apply", "Apply safe fixes from last report"),
+    ("/apply --dry-run", "Preview safe fixes without writing"),
+    ("/restore", "Restore latest safe-apply run"),
+    ("/doctor", "Run setup diagnostics"),
+    ("/json", "Print last agent JSON"),
+    ("/sarif", "Print last report as SARIF"),
+    ("/history", "Show chat messages from this shell session"),
+    ("/chat-debug", "Show whether live chat fell back locally"),
+    ("/github-review <PR> [--act]", "Review a GitHub PR; --act posts the decision"),
+    ("/clear", "Clear screen"),
+    ("/exit", "Exit shell"),
+)
+
 
 @dataclass
 class ShellState:
@@ -94,6 +114,9 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
         name = name.lower()
         args = rest.split() if rest else []
 
+        if name in {"", "?"}:
+            _print_command_suggestions(console, "")
+            continue
         if name in {"exit", "quit"}:
             console.print("[green]Session closed.[/green]")
             return 0
@@ -129,7 +152,8 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
             console.clear()
             _print_welcome(console, state)
         else:
-            console.print(f"[red]Unknown command:[/red] /{name}. Try /help.")
+            if not _print_command_suggestions(console, name):
+                console.print(f"[red]Unknown command:[/red] /{name}. Try /help.")
 
 
 def _print_welcome(console: Console, state: ShellState) -> None:
@@ -148,30 +172,7 @@ def _print_welcome(console: Console, state: ShellState) -> None:
 
 
 def _print_help(console: Console) -> None:
-    table = Table(title="Slash commands", box=box.SIMPLE_HEAVY)
-    table.add_column("Command")
-    table.add_column("Action")
-    rows = [
-        ("/status", "Show project, git, config, and last report state"),
-        ("/guard", "Audit current git diff"),
-        ("/scan", "Audit whole project"),
-        ("/plan", "Show fix plan from last report"),
-        ("/apply", "Apply safe fixes from last report"),
-        ("/apply --dry-run", "Preview safe fixes without writing"),
-        ("/restore", "Restore latest safe-apply run"),
-        ("/doctor", "Run setup diagnostics"),
-        ("/analyse", "Build project memory for better chat context"),
-        ("/json", "Print last agent JSON"),
-        ("/sarif", "Print last report as SARIF"),
-        ("/history", "Show chat messages from this shell session"),
-        ("/chat-debug", "Show whether live chat fell back locally"),
-        ("/github-review <PR> [--act]", "Review a GitHub PR; --act posts the decision"),
-        ("/clear", "Clear screen"),
-        ("/exit", "Exit shell"),
-    ]
-    for command, action in rows:
-        table.add_row(command, action)
-    console.print(table)
+    _print_command_table(console, COMMANDS, title="Slash commands")
 
 
 def _print_status(console: Console, state: ShellState) -> None:
@@ -470,6 +471,25 @@ def _print_chat_debug(console: Console, state: ShellState) -> None:
         console.print("[green]Live chat is available. No chat error recorded.[/green]")
     else:
         console.print("[yellow]OPENAI_API_KEY is not set. Chat is using local fallback replies.[/yellow]")
+
+
+def _print_command_suggestions(console: Console, prefix: str) -> bool:
+    normalized = "/" + prefix
+    matches = [item for item in COMMANDS if item[0].startswith(normalized)]
+    if not matches:
+        return False
+    title = "Available commands" if not prefix else f"Commands matching /{prefix}"
+    _print_command_table(console, matches, title=title)
+    return True
+
+
+def _print_command_table(console: Console, rows: list[tuple[str, str]] | tuple[tuple[str, str], ...], *, title: str) -> None:
+    table = Table(title=title, box=box.SIMPLE_HEAVY)
+    table.add_column("Command")
+    table.add_column("Action")
+    for command, action in rows:
+        table.add_row(command, action)
+    console.print(table)
 
 
 def _maybe_handle_review_chat(console: Console, state: ShellState, message: str) -> bool:

@@ -21,6 +21,32 @@ def test_shell_help_and_exit(tmp_path: Path):
     assert "Session closed" in text
 
 
+def test_shell_slash_lists_all_commands(tmp_path: Path):
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+    commands = iter(["/", "/exit"])
+
+    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+
+    text = output.getvalue()
+    assert code == 0
+    assert "Available commands" in text
+    assert "/analyse" in text
+
+
+def test_shell_partial_command_lists_matches(tmp_path: Path):
+    output = StringIO()
+    console = Console(file=output, force_terminal=False, width=120)
+    commands = iter(["/gu", "/exit"])
+
+    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+
+    text = output.getvalue()
+    assert code == 0
+    assert "Commands matching /gu" in text
+    assert "/guard" in text
+
+
 def test_shell_replies_to_plain_text_without_report(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     output = StringIO()
