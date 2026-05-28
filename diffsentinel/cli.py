@@ -247,6 +247,7 @@ def run_check(args: argparse.Namespace) -> int:
             timeout=args.timeout,
             force_cache=args.force_cache,
             reasoning_effort=reasoning_effort,
+            enabled_rules=settings.rules,
         )
         records.extend(
             IssueRecord(file_path=chunk.filepath, issue=issue, excerpt=chunk.code_excerpt)
@@ -286,6 +287,7 @@ def run_scan(args: argparse.Namespace) -> int:
             args.path,
             max_files=max_files,
             include_tests=not exclude_tests,
+            ignore_paths=settings.ignore_paths,
         )
     except (FileNotFoundError, NotADirectoryError, OSError) as exc:
         console.print(f"[bold red]DiffSentinel scan failed:[/bold red] {exc}")
@@ -299,6 +301,7 @@ def run_scan(args: argparse.Namespace) -> int:
             timeout=args.timeout,
             force_cache=not live,
             reasoning_effort=reasoning_effort,
+            enabled_rules=settings.rules,
         )
         absolute_file = str((scan.root / chunk.filepath).resolve())
         records.extend(
@@ -373,6 +376,7 @@ def run_agent(args: argparse.Namespace) -> int:
             model=model,
             timeout=args.timeout,
             reasoning_effort=reasoning_effort,
+            enabled_rules=settings.rules,
         )
     except AgentError as exc:
         console.print(f"[bold red]DiffSentinel agent failed:[/bold red] {exc}")
@@ -559,6 +563,8 @@ def _collect_agent_findings(args: argparse.Namespace):
             reasoning_effort=reasoning_effort,
             max_files=max_files,
             exclude_tests=exclude_tests,
+            ignore_paths=settings.ignore_paths,
+            enabled_rules=settings.rules,
         )
     return collect_changed_findings(
         cwd=args.path,
@@ -567,6 +573,7 @@ def _collect_agent_findings(args: argparse.Namespace):
         model=model,
         timeout=args.timeout,
         reasoning_effort=reasoning_effort,
+        enabled_rules=settings.rules,
     )
 
 

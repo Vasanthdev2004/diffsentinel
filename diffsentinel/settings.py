@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tomllib
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,8 @@ class DiffSentinelSettings:
     scan_live: bool = False
     agent_default_scope: str = "changed"
     agent_fail_on_critical: bool = True
+    ignore_paths: tuple[str, ...] = ()
+    rules: dict[str, bool] | None = None
     config_path: Path | None = None
 
 
@@ -34,6 +37,8 @@ def load_settings(start: str | Path = ".") -> DiffSentinelSettings:
     openai = data.get("openai", {})
     scan = data.get("scan", {})
     agent = data.get("agent", {})
+    ignore = data.get("ignore", {})
+    rules = data.get("rules", {})
 
     model = str(openai.get("model", DEFAULT_OPENAI_MODEL))
     reasoning_effort = str(openai.get("reasoning_effort", DEFAULT_REASONING_EFFORT))
@@ -51,6 +56,8 @@ def load_settings(start: str | Path = ".") -> DiffSentinelSettings:
         scan_live=bool(scan.get("live", False)),
         agent_default_scope=str(agent.get("default_scope", "changed")),
         agent_fail_on_critical=bool(agent.get("fail_on_critical", True)),
+        ignore_paths=tuple(str(path) for path in ignore.get("paths", [])),
+        rules={str(name): bool(enabled) for name, enabled in rules.items()} if rules else None,
         config_path=config_path,
     )
 
@@ -82,4 +89,18 @@ live = false
 [agent]
 default_scope = "changed"
 fail_on_critical = true
+
+[ignore]
+paths = ["samples/**"]
+
+[rules]
+blocking_io = true
+missing_await = true
+clone_in_loop = true
+inefficient_collection = true
 """
+
+
+def is_ignored(path: str | Path, patterns: tuple[str, ...]) -> bool:
+    normalized = Path(path).as_posix()
+    return any(fnmatch(normalized, pattern) for pattern in patterns)

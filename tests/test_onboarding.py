@@ -33,6 +33,9 @@ def test_load_settings_reads_config_and_env_override(tmp_path: Path, monkeypatch
     assert settings.openai_model == "gpt-5.5"
     assert settings.reasoning_effort == "high"
     assert settings.scan_max_files == 500
+    assert settings.ignore_paths == ("samples/**",)
+    assert settings.rules is not None
+    assert settings.rules["blocking_io"] is True
     assert settings.config_path == tmp_path / ".diffsentinel.toml"
 
 

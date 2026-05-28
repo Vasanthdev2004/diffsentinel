@@ -13,3 +13,12 @@ live = false
 [agent]
 default_scope = "changed"
 fail_on_critical = true
+
+[ignore]
+paths = ["samples/**"]
+
+[rules]
+blocking_io = true
+missing_await = true
+clone_in_loop = true
+inefficient_collection = true

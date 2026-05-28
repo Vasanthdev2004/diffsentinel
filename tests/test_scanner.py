@@ -36,6 +36,19 @@ def test_scan_project_skips_virtualenv_dirs(tmp_path: Path):
     assert result.chunks == []
 
 
+def test_scan_project_respects_ignore_globs(tmp_path: Path):
+    ignored = tmp_path / "samples" / "bad.py"
+    ignored.parent.mkdir()
+    ignored.write_text("import time\n", encoding="utf-8")
+    kept = tmp_path / "app.py"
+    kept.write_text("import time\n", encoding="utf-8")
+
+    result = scan_project(tmp_path, ignore_paths=("samples/**",))
+
+    assert result.files_scanned == 1
+    assert result.chunks[0].filepath == "app.py"
+
+
 def test_scan_project_marks_triple_quoted_fixture_lines_as_context(tmp_path: Path):
     source = tmp_path / "fixture.py"
     source.write_text(

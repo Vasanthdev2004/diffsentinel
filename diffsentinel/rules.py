@@ -28,17 +28,22 @@ BLOCKING_CALLS = {
 }
 
 
-def analyze_with_rules(chunk: DiffChunk) -> AnalysisResult:
+def analyze_with_rules(chunk: DiffChunk, *, enabled_rules: dict[str, bool] | None = None) -> AnalysisResult:
     lines = _parse_excerpt(chunk)
     issues: list[Issue] = []
+    enabled_rules = enabled_rules or {}
 
     for line in lines:
         if not line.changed:
             continue
-        issues.extend(_blocking_async_issues(lines, line))
-        issues.extend(_missing_await_issues(lines, line))
-        issues.extend(_clone_in_loop_issues(lines, line))
-        issues.extend(_inefficient_membership_issues(lines, line))
+        if enabled_rules.get("blocking_io", True):
+            issues.extend(_blocking_async_issues(lines, line))
+        if enabled_rules.get("missing_await", True):
+            issues.extend(_missing_await_issues(lines, line))
+        if enabled_rules.get("clone_in_loop", True):
+            issues.extend(_clone_in_loop_issues(lines, line))
+        if enabled_rules.get("inefficient_collection", True):
+            issues.extend(_inefficient_membership_issues(lines, line))
 
     return AnalysisResult(issues=_dedupe(issues))
 

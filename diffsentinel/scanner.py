@@ -38,6 +38,7 @@ def scan_project(
     *,
     max_files: int = 500,
     include_tests: bool = True,
+    ignore_paths: tuple[str, ...] = (),
 ) -> ProjectScan:
     project_root = Path(root).resolve()
     if not project_root.exists():
@@ -48,7 +49,7 @@ def scan_project(
     chunks: list[DiffChunk] = []
     scanned = 0
     skipped = 0
-    for path in _iter_python_files(project_root, include_tests=include_tests):
+    for path in _iter_python_files(project_root, include_tests=include_tests, ignore_paths=ignore_paths):
         if scanned >= max_files:
             skipped += 1
             continue
@@ -67,15 +68,24 @@ def scan_project(
     )
 
 
-def _iter_python_files(root: Path, *, include_tests: bool) -> list[Path]:
+def _iter_python_files(root: Path, *, include_tests: bool, ignore_paths: tuple[str, ...]) -> list[Path]:
     files: list[Path] = []
     for path in root.rglob("*.py"):
         if any(part in EXCLUDED_DIRS for part in path.parts):
+            continue
+        relative = path.relative_to(root).as_posix()
+        if any(_matches_ignore(relative, pattern) for pattern in ignore_paths):
             continue
         if not include_tests and any(part in {"test", "tests"} for part in path.parts):
             continue
         files.append(path)
     return sorted(files)
+
+
+def _matches_ignore(path: str, pattern: str) -> bool:
+    from fnmatch import fnmatch
+
+    return fnmatch(path, pattern)
 
 
 def _chunk_for_file(path: Path, root: Path) -> DiffChunk | None:

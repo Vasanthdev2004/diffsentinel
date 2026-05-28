@@ -80,6 +80,7 @@ def collect_changed_findings(
     model: str,
     timeout: float,
     reasoning_effort: str,
+    enabled_rules: dict[str, bool] | None = None,
 ) -> FindingSet:
     try:
         git_root = find_git_root(cwd)
@@ -95,6 +96,7 @@ def collect_changed_findings(
             timeout=timeout,
             force_cache=not live,
             reasoning_effort=reasoning_effort,
+            enabled_rules=enabled_rules,
         )
         absolute_file = str((git_root / chunk.filepath).resolve())
         findings.extend(
@@ -118,8 +120,10 @@ def collect_project_findings(
     reasoning_effort: str,
     max_files: int,
     exclude_tests: bool,
+    ignore_paths: tuple[str, ...] = (),
+    enabled_rules: dict[str, bool] | None = None,
 ) -> FindingSet:
-    scan = scan_project(path, max_files=max_files, include_tests=not exclude_tests)
+    scan = scan_project(path, max_files=max_files, include_tests=not exclude_tests, ignore_paths=ignore_paths)
     findings: list[Finding] = []
     for chunk in scan.chunks:
         result = analyze_chunk(
@@ -128,6 +132,7 @@ def collect_project_findings(
             timeout=timeout,
             force_cache=not live,
             reasoning_effort=reasoning_effort,
+            enabled_rules=enabled_rules,
         )
         absolute_file = str((scan.root / chunk.filepath).resolve())
         findings.extend(
@@ -208,6 +213,7 @@ def run_interactive_agent(
     model: str,
     timeout: float,
     reasoning_effort: str,
+    enabled_rules: dict[str, bool] | None = None,
 ) -> InteractiveAgentOutcome:
     if not quiet:
         console.print(Panel("DiffSentinel Agent", subtitle="inspect -> plan -> apply -> verify", border_style="cyan"))
@@ -248,6 +254,7 @@ def run_interactive_agent(
         model=model,
         timeout=timeout,
         reasoning_effort=reasoning_effort,
+        enabled_rules=enabled_rules,
     )
     final_report = build_agent_report(final_set, fail_on_critical=fail_on_critical, applied=applied)
     if not quiet:
@@ -483,6 +490,7 @@ def _rerun_finding_set(
     model: str,
     timeout: float,
     reasoning_effort: str,
+    enabled_rules: dict[str, bool] | None,
 ) -> FindingSet:
     if finding_set.scope == "project":
         return collect_project_findings(
@@ -493,6 +501,8 @@ def _rerun_finding_set(
             reasoning_effort=reasoning_effort,
             max_files=finding_set.files_scanned or 500,
             exclude_tests=False,
+            ignore_paths=(),
+            enabled_rules=enabled_rules,
         )
     return collect_changed_findings(
         cwd=finding_set.root,
@@ -500,6 +510,7 @@ def _rerun_finding_set(
         model=model,
         timeout=timeout,
         reasoning_effort=reasoning_effort,
+        enabled_rules=enabled_rules,
     )
 
 

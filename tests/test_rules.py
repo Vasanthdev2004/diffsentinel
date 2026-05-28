@@ -63,3 +63,21 @@ def test_rules_marks_clone_warning_as_manual_review():
     assert len(result.issues) == 1
     assert result.issues[0].category == "UNNECESSARY_CLONE"
     assert not can_auto_apply(result.issues[0])
+
+
+def test_rules_can_disable_blocking_io():
+    chunk = DiffChunk(
+        filepath="service.py",
+        code_excerpt=(
+            "   1  import asyncio\n"
+            "   2  import time\n"
+            "   4  async def handle_request():\n"
+            "   5*     time.sleep(1)"
+        ),
+        line_offset=1,
+        changed_lines=(5,),
+    )
+
+    result = analyze_with_rules(chunk, enabled_rules={"blocking_io": False})
+
+    assert result.issues == []

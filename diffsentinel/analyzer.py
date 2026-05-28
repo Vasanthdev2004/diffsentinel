@@ -29,14 +29,15 @@ def analyze_chunk(
     timeout: float = 10.0,
     force_cache: bool = False,
     reasoning_effort: str = DEFAULT_REASONING_EFFORT,
+    enabled_rules: dict[str, bool] | None = None,
 ) -> AnalysisResult:
     if force_cache or not os.getenv("OPENAI_API_KEY"):
-        return analyze_with_rules(chunk)
+        return analyze_with_rules(chunk, enabled_rules=enabled_rules)
 
     try:
         return _analyze_with_openai(chunk, model=model, timeout=timeout, reasoning_effort=reasoning_effort)
     except Exception:
-        return cached_result_for_chunk(chunk)
+        return cached_result_for_chunk(chunk, enabled_rules=enabled_rules)
 
 
 def _analyze_with_openai(
