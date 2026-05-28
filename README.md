@@ -45,6 +45,7 @@ The original file is backed up as `<file>.diffsentinel.bak` before the fix is wr
 - Interactive agent loop with `diffsentinel agent`
 - Interactive `dfs` shell with slash commands
 - Autopilot and PR review report commands
+- GitHub PR review action mode through `gh`
 - OpenAI Structured Outputs when `OPENAI_API_KEY` is set
 - Offline local rules engine when no API key is available
 - Rich terminal UI with severity colors and safe apply
@@ -207,6 +208,8 @@ dfs agent --yes
 dfs demo-agent
 dfs autopilot --apply-safe --markdown
 dfs review-pr --markdown
+dfs github-review 12
+dfs github-review 12 --act
 diffsentinel init
 diffsentinel doctor
 diffsentinel scan .
@@ -291,6 +294,19 @@ dfs review-pr --markdown
 ```
 
 These commands inspect changed code, optionally apply safe fixes, rerun guard, and write a markdown report under `.diffsentinel/reports/`.
+
+For GitHub PR actions:
+
+```powershell
+dfs github-review 12
+dfs github-review 12 --act
+```
+
+Default mode is dry-run. With `--act`, DiffSentinel uses `gh` to approve, request changes, or comment depending on findings. Review bodies include:
+
+```text
+Reviewed by DiffSentinel
+```
 
 ## Safe By Default
 

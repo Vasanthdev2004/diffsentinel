@@ -98,10 +98,30 @@ Current status:
 - interactive `dfs` shell with slash commands
 - autonomous `dfs autopilot` and `dfs review-pr`
 - natural-language chat inside the `dfs` shell
+- GitHub PR review action mode with DiffSentinel watermark
 - tests passing: 45
 - public repo live
 
 Repo: https://github.com/Vasanthdev2004/diffsentinel
+
+#OpenAIHackathon
+
+## LinkedIn Post 9
+
+DiffSentinel now takes GitHub PR review actions.
+
+```powershell
+dfs github-review 12
+dfs github-review 12 --act
+```
+
+Dry-run mode previews the decision. With `--act`, DiffSentinel uses GitHub CLI to approve, request changes, or comment based on performance-risk findings.
+
+Every review body includes:
+
+Reviewed by DiffSentinel
+
+This makes the product feel like an actual PR-review agent, not just a local checker.
 
 #OpenAIHackathon
 

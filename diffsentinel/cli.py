@@ -28,6 +28,7 @@ from .analyzer import analyze_chunk
 from .demo import run_agent_demo, run_demo
 from .diff import DiffError, get_diff_chunks
 from .hooks import HookError, install_pre_commit_hook, uninstall_pre_commit_hook
+from .github_review import GitHubReviewError, outcome_json as github_review_json, review_pull_request
 from .onboarding import checks_json, initialize_project, print_doctor, print_init_result, run_doctor
 from .patcher import PatchError, apply_issue
 from .rules import can_auto_apply
@@ -68,6 +69,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_autopilot_command(args)
     if args.command == "review-pr":
         return run_review_pr(args)
+    if args.command == "github-review":
+        return run_github_review(args)
     if args.command == "fix-plan":
         return run_fix_plan(args)
     if args.command == "apply-safe":
@@ -172,6 +175,14 @@ def build_parser() -> argparse.ArgumentParser:
     review_pr.add_argument("--dry-run", action="store_true", help="Preview safe fixes without writing files")
     review_pr.add_argument("--json", action="store_true", help="Print review outcome as JSON")
     review_pr.add_argument("--fail-on-critical", action="store_true", help="Exit 1 if final report has CRITICAL issues")
+
+    github_review = subparsers.add_parser("github-review", help="Review a GitHub PR and optionally post a decision")
+    github_review.add_argument("pr_number", type=int, help="Pull request number")
+    github_review.add_argument("--act", action="store_true", help="Actually post comment/approval/request-changes")
+    github_review.add_argument("--comment-only", action="store_true", help="Always post/comment instead of review decision")
+    github_review.add_argument("--strict", action="store_true", help="Request changes when manual-review findings exist")
+    github_review.add_argument("--live", action="store_true", help="Use OpenAI analysis when OPENAI_API_KEY is set")
+    github_review.add_argument("--json", action="store_true", help="Print outcome JSON")
 
     fix_plan = subparsers.add_parser("fix-plan", help="Show safe fixes and manual-review items")
     _add_agent_scope_args(fix_plan)
@@ -457,6 +468,32 @@ def run_review_pr(args: argparse.Namespace) -> int:
     args.markdown = True
     args.sarif = False
     return run_autopilot_command(args)
+
+
+def run_github_review(args: argparse.Namespace) -> int:
+    console = Console()
+    settings = load_settings()
+    try:
+        outcome = review_pull_request(
+            args.pr_number,
+            settings=settings,
+            act=args.act,
+            comment_only=args.comment_only,
+            strict=args.strict,
+            live=args.live,
+        )
+    except GitHubReviewError as exc:
+        console.print(f"[bold red]GitHub review failed:[/bold red] {exc}")
+        return 2
+    if args.json:
+        print(github_review_json(outcome))
+    else:
+        mode = "posted" if outcome.acted else "dry-run"
+        console.print(
+            f"[bold green]GitHub review {mode}:[/bold green] PR #{outcome.pr_number} -> {outcome.action}\n"
+            f"Report: {outcome.report_path}"
+        )
+    return 1 if outcome.action == "request-changes" else 0
 
 
 def run_fix_plan(args: argparse.Namespace) -> int:

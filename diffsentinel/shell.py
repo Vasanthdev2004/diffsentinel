@@ -25,6 +25,7 @@ from .agent import (
     restore_run,
 )
 from .hooks import HookError, find_git_root
+from .github_review import GitHubReviewError, review_pull_request
 from .onboarding import print_doctor, run_doctor
 from .sarif import sarif_json
 from .settings import load_settings
@@ -117,6 +118,8 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
             _print_history(console, state)
         elif name == "chat-debug":
             _print_chat_debug(console, state)
+        elif name == "github-review":
+            _github_review_command(console, state, args, act="--act" in args)
         elif name == "clear":
             console.clear()
             _print_welcome(console, state)
@@ -156,6 +159,7 @@ def _print_help(console: Console) -> None:
         ("/sarif", "Print last report as SARIF"),
         ("/history", "Show chat messages from this shell session"),
         ("/chat-debug", "Show whether live chat fell back locally"),
+        ("/github-review <PR> [--act]", "Review a GitHub PR; --act posts the decision"),
         ("/clear", "Clear screen"),
         ("/exit", "Exit shell"),
     ]
@@ -272,6 +276,8 @@ def _print_last_sarif(console: Console, state: ShellState) -> None:
 def _reply_to_chat(console: Console, state: ShellState, message: str) -> None:
     state.messages = state.messages or []
     state.messages.append({"role": "user", "content": message})
+    if _maybe_handle_review_chat(console, state, message):
+        return
     settings = load_settings(state.root)
     if os.getenv("OPENAI_API_KEY") and console.is_terminal:
         with console.status(f"[cyan]{THINKING_PHRASES[0]}...[/cyan]", spinner="dots") as status:
@@ -434,6 +440,50 @@ def _print_chat_debug(console: Console, state: ShellState) -> None:
         console.print("[green]Live chat is available. No chat error recorded.[/green]")
     else:
         console.print("[yellow]OPENAI_API_KEY is not set. Chat is using local fallback replies.[/yellow]")
+
+
+def _maybe_handle_review_chat(console: Console, state: ShellState, message: str) -> bool:
+    lowered = message.lower()
+    if "pr" not in lowered or "review" not in lowered:
+        return False
+    import re
+
+    match = re.search(r"\bpr\s*#?\s*(\d+)\b|\b#(\d+)\b", lowered)
+    if not match:
+        return False
+    pr_number = int(next(group for group in match.groups() if group))
+    act = any(token in lowered for token in (" act", " post", " approve", " request changes"))
+    _github_review_command(console, state, [str(pr_number)], act=act)
+    return True
+
+
+def _github_review_command(console: Console, state: ShellState, args: list[str], *, act: bool) -> None:
+    if not args:
+        console.print("[yellow]Usage: /github-review <PR_NUMBER> [--act][/yellow]")
+        return
+    try:
+        pr_number = int(args[0])
+    except ValueError:
+        console.print("[yellow]PR number must be an integer.[/yellow]")
+        return
+    settings = load_settings(state.root)
+    try:
+        outcome = review_pull_request(pr_number, root=state.root, settings=settings, act=act)
+    except GitHubReviewError as exc:
+        console.print(Panel(str(exc), title="GitHub review failed", border_style="red"))
+        return
+    mode = "posted" if outcome.acted else "dry-run"
+    console.print(
+        Panel(
+            f"PR #{outcome.pr_number}\n"
+            f"Decision: {outcome.action}\n"
+            f"Mode: {mode}\n"
+            f"Report: {outcome.report_path}\n"
+            "Watermark: Reviewed by DiffSentinel",
+            title="GitHub Review",
+            border_style="green" if outcome.action == "approve" else "yellow",
+        )
+    )
 
 
 def _advance_status(status: Status | None, index: int) -> None:

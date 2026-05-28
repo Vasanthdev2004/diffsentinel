@@ -47,6 +47,7 @@ Completed today:
 - Added interactive `dfs` shell with logo, slash commands, and session memory.
 - Added autonomous `dfs autopilot` and `dfs review-pr` markdown reporting.
 - Added natural-language replies inside the `dfs` shell.
+- Added GitHub PR review action mode with review/comment/approve/request-changes behavior.
 - Added reusable demo runner module.
 - Added tests for demo apply and no-apply modes.
 - Added tests for pre-commit hook install, backup, and restore behavior.
@@ -75,7 +76,7 @@ dfs demo-agent
 Test result:
 
 ```text
-45 passed
+54 passed
 ```
 
 ## Next Steps
