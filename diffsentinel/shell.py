@@ -95,7 +95,7 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
     state.messages = []
     state.project_memory = load_project_memory(state.root)
     _print_welcome(console, state)
-    input_func = input_func or console.input
+    input_func = input_func or _prompt_input(console)
 
     while True:
         try:
@@ -152,8 +152,7 @@ def run_shell(*, root: str | Path = ".", console: Console | None = None, input_f
             console.clear()
             _print_welcome(console, state)
         else:
-            if not _print_command_suggestions(console, name):
-                console.print(f"[red]Unknown command:[/red] /{name}. Try /help.")
+            console.print(f"[red]Unknown command:[/red] /{name}. Press Tab after / to see commands.")
 
 
 def _print_welcome(console: Console, state: ShellState) -> None:
@@ -473,16 +472,6 @@ def _print_chat_debug(console: Console, state: ShellState) -> None:
         console.print("[yellow]OPENAI_API_KEY is not set. Chat is using local fallback replies.[/yellow]")
 
 
-def _print_command_suggestions(console: Console, prefix: str) -> bool:
-    normalized = "/" + prefix
-    matches = [item for item in COMMANDS if item[0].startswith(normalized)]
-    if not matches:
-        return False
-    title = "Available commands" if not prefix else f"Commands matching /{prefix}"
-    _print_command_table(console, matches, title=title)
-    return True
-
-
 def _print_command_table(console: Console, rows: list[tuple[str, str]] | tuple[tuple[str, str], ...], *, title: str) -> None:
     table = Table(title=title, box=box.SIMPLE_HEAVY)
     table.add_column("Command")
@@ -490,6 +479,50 @@ def _print_command_table(console: Console, rows: list[tuple[str, str]] | tuple[t
     for command, action in rows:
         table.add_row(command, action)
     console.print(table)
+
+
+class SlashCommandCompleter:
+    def get_completions(self, document, complete_event):
+        from prompt_toolkit.completion import Completion
+
+        text = document.text_before_cursor
+        if not text.startswith("/"):
+            return
+        command_part = text.split()[0]
+        for command, help_text in COMMANDS:
+            base = command.split()[0]
+            if base.startswith(command_part):
+                yield Completion(
+                    base,
+                    start_position=-len(command_part),
+                    display=command,
+                    display_meta=help_text,
+                )
+
+
+def _prompt_input(console: Console) -> Callable[[str], str]:
+    try:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.history import InMemoryHistory
+    except Exception:
+        return console.input
+
+    if not console.is_terminal:
+        return console.input
+
+    session = PromptSession(
+        completer=SlashCommandCompleter(),
+        complete_while_typing=True,
+        history=InMemoryHistory(),
+    )
+
+    def read(prompt: str) -> str:
+        return session.prompt(
+            "dfs > ",
+            complete_while_typing=True,
+        )
+
+    return read
 
 
 def _maybe_handle_review_chat(console: Console, state: ShellState, message: str) -> bool:

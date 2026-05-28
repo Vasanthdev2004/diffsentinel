@@ -12,6 +12,7 @@ license = "MIT"
 keywords = ["ai", "code-review", "performance", "asyncio", "terminal"]
 dependencies = [
     "openai>=1.54.0",
+    "prompt_toolkit>=3.0.0",
     "pydantic>=2.8.0",
     "rich>=13.9.0",
 ]

@@ -4,7 +4,17 @@ from pathlib import Path
 
 from rich.console import Console
 
-from diffsentinel.shell import ASCII_LOGO, THINKING_PHRASES, UNICODE_LOGO, _advance_status, _logo_for_console, run_shell
+from prompt_toolkit.document import Document
+
+from diffsentinel.shell import (
+    ASCII_LOGO,
+    THINKING_PHRASES,
+    UNICODE_LOGO,
+    SlashCommandCompleter,
+    _advance_status,
+    _logo_for_console,
+    run_shell,
+)
 
 
 def test_shell_help_and_exit(tmp_path: Path):
@@ -21,30 +31,23 @@ def test_shell_help_and_exit(tmp_path: Path):
     assert "Session closed" in text
 
 
-def test_shell_slash_lists_all_commands(tmp_path: Path):
-    output = StringIO()
-    console = Console(file=output, force_terminal=False, width=120)
-    commands = iter(["/", "/exit"])
+def test_slash_command_completer_shows_all_for_slash():
+    completer = SlashCommandCompleter()
 
-    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+    completions = list(completer.get_completions(Document("/"), None))
 
-    text = output.getvalue()
-    assert code == 0
-    assert "Available commands" in text
-    assert "/analyse" in text
+    assert any(completion.text == "/guard" for completion in completions)
+    assert any(completion.text == "/analyse" for completion in completions)
 
 
-def test_shell_partial_command_lists_matches(tmp_path: Path):
-    output = StringIO()
-    console = Console(file=output, force_terminal=False, width=120)
-    commands = iter(["/gu", "/exit"])
+def test_slash_command_completer_filters_prefix():
+    completer = SlashCommandCompleter()
 
-    code = run_shell(root=tmp_path, console=console, input_func=lambda _: next(commands))
+    completions = list(completer.get_completions(Document("/app"), None))
+    texts = [completion.text for completion in completions]
 
-    text = output.getvalue()
-    assert code == 0
-    assert "Commands matching /gu" in text
-    assert "/guard" in text
+    assert "/apply" in texts
+    assert "/guard" not in texts
 
 
 def test_shell_replies_to_plain_text_without_report(tmp_path: Path, monkeypatch):
